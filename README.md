@@ -1,4 +1,4 @@
-# Microsoft Graph Python API class
+# Hermes Microsoft Graph
 Project Description
 
 MSGraph Email Manager is a Python project designed to facilitate email management and interaction with Microsoft Graph API. It provides an easy-to-use interface to automate various email-related tasks, such as sending emails, reading inbox messages, organizing data into structured formats like DataFrames, and extracting specific email data as needed.
