@@ -221,8 +221,9 @@ class MSGraphAPI:
 
     def list_mail_folders(self, email_address):
         mail_folders = self.get_mail_folders(email_address)
-        if mail_folders:
-            print(mail_folders)
+        df_mail_folders = pd.DataFrame(mail_folders)
+        if not df_mail_folders.empty:
+            return df_mail_folders
 
     def get_df_emails(self, email_address, subject_filter="", n_of_massages=10, messages_json_path='messages.json'):
         """
