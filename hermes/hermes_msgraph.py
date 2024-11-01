@@ -124,7 +124,7 @@ class MSGraphAPI:
         }
         
         url = f"https://graph.microsoft.com/v1.0/users/{email_address}/messages?$top={n_of_massages}"
-        
+
         response = requests.get(url, headers=headers)
         
         if response.status_code == 200:
@@ -176,7 +176,7 @@ class MSGraphAPI:
         df_emails = df_emails[columns]
         return df_emails
     
-    def __filter_subject(self, df, subject_filter):
+    def __filter_subject(self, df, subject_filter): #maybe use rejex
 
         if subject_filter:
             # Case: starts and ends with asterisk -> "contains"
@@ -199,7 +199,30 @@ class MSGraphAPI:
                 df = df[df["subject"] == subject_filter]
 
         return df
+    
+    def get_mail_folders(self, email_address):
+        access_token = self.__get_access_token()
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        url = f"https://graph.microsoft.com/v1.0/users/{email_address}/mailfolders/delta?$select=displayname"
+        
+        #https://stackoverflow.com/questions/42901755/microsoft-graph-outlook-mail-list-all-mail-folders-not-just-the-top-level-o
+        #url = f"https://graph.microsoft.com/v1.0/users/{email_address}/messages?$top={n_of_massages}"
 
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            mail_folders = response.json().get('value', [])
+            return mail_folders
+        else:
+            print(f"Erro ao ler e-mails: {response.status_code}")
+
+    def list_mail_folders(self, email_address):
+        mail_folders = self.get_mail_folders(email_address)
+        if mail_folders:
+            print(mail_folders)
 
     def get_df_emails(self, email_address, subject_filter="", n_of_massages=10, messages_json_path='messages.json'):
         """
