@@ -148,21 +148,21 @@ class MSGraphAPI:
 
         Returns:
         -------
-        df_messages : pandas.DataFrame
+        df_emails : pandas.DataFrame
             DataFrame contendo as mensagens de e-mail.
         """
         with open(json_file_path, 'r') as file:
             json_data = json.load(file)
-        df_messages = pd.json_normalize(json_data)
-        return df_messages
+        df_emails = pd.json_normalize(json_data)
+        return df_emails
 
-    def __organize_df_messages(self, df_messages):
+    def __organize_df_emails(self, df_emails):
         """
         Método privado para organizar o DataFrame de mensagens de e-mail com colunas relevantes.
 
         Parameters:
         ----------
-        df_messages : pandas.DataFrame
+        df_emails : pandas.DataFrame
             DataFrame com as mensagens de e-mail.
 
         Returns:
@@ -173,10 +173,35 @@ class MSGraphAPI:
         columns = ['subject', 'isRead', 'sentDateTime', 'receivedDateTime', 'sender.emailAddress.name', 
                    'sender.emailAddress.address', 'from.emailAddress.name', 'from.emailAddress.address', 
                    'bodyPreview', 'body.contentType', 'body.content']
-        df_emails = df_messages[columns]
+        df_emails = df_emails[columns]
         return df_emails
+    
+    def __filter_subject(self, df, subject_filter):
 
-    def get_df_emails(self, email_address, n_of_massages=10, messages_json_path='messages.json'):
+        if subject_filter:
+            # Case: starts and ends with asterisk -> "contains"
+            if subject_filter.startswith("*") and subject_filter.endswith("*"):
+                subject_filter = subject_filter.strip("*")
+                df = df[df["subject"].str.contains(subject_filter, case=False, regex=False)]
+            
+            # Case: starts with asterisk -> "ends with"
+            elif subject_filter.startswith("*"):
+                subject_filter = subject_filter.lstrip("*")
+                df = df[df["subject"].str.endswith(subject_filter, na=False)]
+            
+            # Case: ends with asterisk -> "starts with"
+            elif subject_filter.endswith("*"):
+                subject_filter = subject_filter.rstrip("*")
+                df = df[df["subject"].str.startswith(subject_filter, na=False)]
+            
+            # Case: exact match
+            else:
+                df = df[df["subject"] == subject_filter]
+
+        return df
+
+
+    def get_df_emails(self, email_address, subject_filter="", n_of_massages=10, messages_json_path='messages.json'):
         """
         Método público para obter as mensagens de e-mail e organizá-las em um DataFrame apenas com colunas normalmente necessárias, sem todos os atributos do e-mail.
 
@@ -191,18 +216,20 @@ class MSGraphAPI:
 
         Returns:
         -------
-        df_messages : pandas.DataFrame
+        df_emails : pandas.DataFrame
             DataFrame organizado com as mensagens de e-mail.
         """
         self.__read_email(messages_json_path, email_address, n_of_massages)
-        df_full_messages = self.__json_to_dataframe(messages_json_path)
-        df_messages = self.__organize_df_messages(df_full_messages)
-        return df_messages
+        df_raw_emails = self.__json_to_dataframe(messages_json_path)
+        df_emails = self.__organize_df_emails(df_raw_emails)
+        if subject_filter != "":
+            df_emails = self.__filter_subject(df_emails, subject_filter)
+        return df_emails
     # Exemplo de uso:
     # api = MSGraphAPI()
-    # df_messages = api.get_df_emails("anakin.skywalker@fitenergia.com.br")
+    # df_emails = api.get_df_emails("anakin.skywalker@fitenergia.com.br")
 
-    def get_raw_df_emails(self, email_address, n_of_massages=10, messages_json_path='messages.json'):
+    def get_raw_df_emails(self, email_address, subject_filter="",n_of_massages=10, messages_json_path='messages.json'):
         """
         Método público para obter as mensagens de e-mail e organizá-las em um DataFrame com todos os atributos recebidos.
 
@@ -217,9 +244,12 @@ class MSGraphAPI:
 
         Returns:
         -------
-        df_messages : pandas.DataFrame
+        df_emails : pandas.DataFrame
             DataFrame completo com as mensagens de e-mail e todos os atributos.
         """
         self.__read_email(messages_json_path, email_address, n_of_massages)
-        df_full_messages = self.__json_to_dataframe(messages_json_path)
-        return df_full_messages
+        df_raw_emails = self.__json_to_dataframe(messages_json_path)
+        if subject_filter != "":
+            df_raw_emails = self.__filter_subject(df_raw_emails, subject_filter)
+        return df_raw_emails
+    
