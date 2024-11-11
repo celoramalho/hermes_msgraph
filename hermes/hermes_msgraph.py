@@ -104,7 +104,32 @@ class MSGraphAPI:
         else:
             print(f"Erro ao enviar e-mail: {response.status_code}")
 
-    def __read_email(self, messages_json_path, email_address, n_of_massages):
+    def get_email_folders(self, email_address):
+        access_token = self.__get_access_token()
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        url = f"https://graph.microsoft.com/v1.0/users/{email_address}/mailfolders/delta?$select=displayname"
+        
+        #https://stackoverflow.com/questions/42901755/microsoft-graph-outlook-mail-list-all-mail-folders-not-just-the-top-level-o
+        #url = f"https://graph.microsoft.com/v1.0/users/{email_address}/messages?$top={n_of_massages}"
+
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            mail_folders = response.json().get('value', [])
+            return mail_folders
+        else:
+            print(f"Erro ao ler e-mails: {response.status_code}")
+
+    def list_email_folders(self, email_address):
+        mail_folders = self.get_email_folders(email_address)
+        df_mail_folders = pd.DataFrame(mail_folders)
+        if not df_mail_folders.empty:
+            return df_mail_folders
+
+    def __read_email(self, messages_json_path, email_address, n_of_massages, folder):
         """
         Método privado para ler e-mails de um endereço específico.
 
@@ -117,13 +142,21 @@ class MSGraphAPI:
         n_of_massages : int
             Número de mensagens a serem recuperadas.
         """
+        
+
         access_token = self.__get_access_token()
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
         }
-        
-        url = f"https://graph.microsoft.com/v1.0/users/{email_address}/messages?$top={n_of_massages}"
+        if folder == 'all':
+            url = f"https://graph.microsoft.com/v1.0/users/{email_address}/messages?$top={n_of_massages}"
+        else:
+            df_folders = self.list_email_folders(email_address)
+            folder_id = df_folders.loc[df_folders['displayName'] == folder, 'id'].iloc[0]
+            print(folder_id)
+
+            url = f"https://graph.microsoft.com/v1.0/users/{email_address}/mailFolders/{folder_id}/messages?$top={n_of_massages}"
 
         response = requests.get(url, headers=headers)
         
@@ -199,33 +232,8 @@ class MSGraphAPI:
                 df = df[df["subject"] == subject_filter]
 
         return df
-    
-    def get_mail_folders(self, email_address):
-        access_token = self.__get_access_token()
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-        url = f"https://graph.microsoft.com/v1.0/users/{email_address}/mailfolders/delta?$select=displayname"
-        
-        #https://stackoverflow.com/questions/42901755/microsoft-graph-outlook-mail-list-all-mail-folders-not-just-the-top-level-o
-        #url = f"https://graph.microsoft.com/v1.0/users/{email_address}/messages?$top={n_of_massages}"
 
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code == 200:
-            mail_folders = response.json().get('value', [])
-            return mail_folders
-        else:
-            print(f"Erro ao ler e-mails: {response.status_code}")
-
-    def list_mail_folders(self, email_address):
-        mail_folders = self.get_mail_folders(email_address)
-        df_mail_folders = pd.DataFrame(mail_folders)
-        if not df_mail_folders.empty:
-            return df_mail_folders
-
-    def get_df_emails(self, email_address, subject_filter="", n_of_massages=10, messages_json_path='messages.json'):
+    def get_df_emails(self, email_address, n_of_massages=10, subject_filter="", folder="all", messages_json_path='messages.json'):
         """
         Método público para obter as mensagens de e-mail e organizá-las em um DataFrame apenas com colunas normalmente necessárias, sem todos os atributos do e-mail.
 
@@ -243,7 +251,7 @@ class MSGraphAPI:
         df_emails : pandas.DataFrame
             DataFrame organizado com as mensagens de e-mail.
         """
-        self.__read_email(messages_json_path, email_address, n_of_massages)
+        self.__read_email(messages_json_path, email_address, n_of_massages, folder)
         df_raw_emails = self.__json_to_dataframe(messages_json_path)
         df_emails = self.__organize_df_emails(df_raw_emails)
         if subject_filter != "":
@@ -253,7 +261,7 @@ class MSGraphAPI:
     # api = MSGraphAPI()
     # df_emails = api.get_df_emails("anakin.skywalker@fitenergia.com.br")
 
-    def get_raw_df_emails(self, email_address, subject_filter="",n_of_massages=10, messages_json_path='messages.json'):
+    def get_raw_df_emails(self, email_address, subject_filter="", folder="all", n_of_massages=10, messages_json_path='messages.json'):
         """
         Método público para obter as mensagens de e-mail e organizá-las em um DataFrame com todos os atributos recebidos.
 
@@ -271,7 +279,7 @@ class MSGraphAPI:
         df_emails : pandas.DataFrame
             DataFrame completo com as mensagens de e-mail e todos os atributos.
         """
-        self.__read_email(messages_json_path, email_address, n_of_massages)
+        self.__read_email(messages_json_path, email_address, n_of_massages, folder)
         df_raw_emails = self.__json_to_dataframe(messages_json_path)
         if subject_filter != "":
             df_raw_emails = self.__filter_subject(df_raw_emails, subject_filter)
