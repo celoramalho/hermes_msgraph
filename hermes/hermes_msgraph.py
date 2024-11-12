@@ -121,6 +121,67 @@ class MSGraphAPI:
         else:
             print(f"Error sending email: {response.status_code}")
 
+    def __ulr_filter_subject(self, subject):
+        if subject:
+            # Case: starts and ends with asterisk -> "contains"
+            if subject.startswith("*") and subject.endswith("*"):
+                subject = subject.strip("*")
+                subject_filter_url = f"contains(subject, '{subject}')"
+            
+            # Case: starts with asterisk -> "ends with"
+            elif subject.startswith("*") and not subject.endswith("*"):
+                subject = subject.strip("*")
+                subject_filter_url = f"startswith(subject, '{subject}')"
+            
+            # Case: ends with asterisk -> "starts with"
+            elif subject.endswith("*") and not subject.startswith("*"):
+                subject = subject.strip("*")
+                subject_filter_url = f"endswith(subject, '{subject}')"
+            
+            # Case: exact match
+            else:
+                subject_filter_url = f"subject eq '{subject}'"
+        
+        return subject_filter_url
+
+    def __filter_subject(self, df, subject_filter):
+        """
+        Filters the DataFrame for email messages matching the subject filter.
+
+        Parameters:
+        ----------
+        df : pandas.DataFrame
+            DataFrame of email messages.
+        subject_filter : str
+            Subject filter that may use asterisks for partial matching.
+
+        Returns:
+        -------
+        df : pandas.DataFrame
+            DataFrame filtered by subject.
+        """
+        if subject_filter:
+            # Case: starts and ends with asterisk -> "contains"
+            if subject_filter.startswith("*") and subject_filter.endswith("*"):
+                subject_filter = subject_filter.strip("*")
+                df = df[df["subject"].str.contains(subject_filter, case=False, regex=False)]
+            
+            # Case: starts with asterisk -> "ends with"
+            elif subject_filter.startswith("*") and not subject_filter.endswith("*"):
+                subject_filter = subject_filter.lstrip("*")
+                df = df[df["subject"].str.endswith(subject_filter, na=False)]
+            
+            # Case: ends with asterisk -> "starts with"
+            elif subject_filter.endswith("*") and not subject_filter.startswith("*"):
+                subject_filter = subject_filter.rstrip("*")
+                df = df[df["subject"].str.startswith(subject_filter, na=False)]
+            
+            # Case: exact match
+            else:
+                df = df[df["subject"] == subject_filter]
+
+        return df
+
     def get_email_folders(self, email_address):
         """
         Retrieves the email folders for the specified user.
@@ -214,7 +275,8 @@ class MSGraphAPI:
             email_filter.append(f"sender/emailAddress/address eq '{sender}'")
         
         if subject:
-            email_filter.append(f"subject eq '{subject}'")
+            email_filter.append(self.__ulr_filter_subject(subject))
+            #email_filter.append(f"subject eq '{subject}'")
 
         if email_filter:
             email_filter_joined = " and ".join(email_filter)
@@ -234,6 +296,7 @@ class MSGraphAPI:
             email_filter_url = ''
 
         url = f"https://graph.microsoft.com/v1.0/users/{email_address}{folder}/messages?{email_filter_url}"
+        print(url)
         response = requests.get(url, headers=headers)
         
         if response.status_code == 200:
@@ -284,44 +347,6 @@ class MSGraphAPI:
                    'bodyPreview', 'body.contentType', 'body.content']
         df_emails = df_emails[columns]
         return df_emails
-    
-    def __filter_subject(self, df, subject_filter):
-        """
-        Filters the DataFrame for email messages matching the subject filter.
-
-        Parameters:
-        ----------
-        df : pandas.DataFrame
-            DataFrame of email messages.
-        subject_filter : str
-            Subject filter that may use asterisks for partial matching.
-
-        Returns:
-        -------
-        df : pandas.DataFrame
-            DataFrame filtered by subject.
-        """
-        if subject_filter:
-            # Case: starts and ends with asterisk -> "contains"
-            if subject_filter.startswith("*") and subject_filter.endswith("*"):
-                subject_filter = subject_filter.strip("*")
-                df = df[df["subject"].str.contains(subject_filter, case=False, regex=False)]
-            
-            # Case: starts with asterisk -> "ends with"
-            elif subject_filter.startswith("*"):
-                subject_filter = subject_filter.lstrip("*")
-                df = df[df["subject"].str.endswith(subject_filter, na=False)]
-            
-            # Case: ends with asterisk -> "starts with"
-            elif subject_filter.endswith("*"):
-                subject_filter = subject_filter.rstrip("*")
-                df = df[df["subject"].str.startswith(subject_filter, na=False)]
-            
-            # Case: exact match
-            else:
-                df = df[df["subject"] == subject_filter]
-
-        return df
 
     def get_df_emails(self, email_address, subject='', folder='', sender='', n_of_massages=10, subject_filter="", messages_json_path='messages.json'):
         """
@@ -354,7 +379,7 @@ class MSGraphAPI:
         if not df_raw_emails.empty:
             df_emails = self.__organize_df_emails(df_raw_emails)
         else:
-            df_emails = ''
+            df_emails = None
             print("No emails found using the parameters passed.")
             pass
         if subject_filter != "":
