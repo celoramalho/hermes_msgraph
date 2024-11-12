@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#https://graph.microsoft.com/v1.0/me/messages?$filter=subject eq '{subject}' and sender/emailAddress/address eq '{sender email address}' and sentDateTime ge 2023-05-17T07:28:08Z
 # coding: utf-8
 import json
 import requests
@@ -129,7 +130,7 @@ class MSGraphAPI:
         if not df_mail_folders.empty:
             return df_mail_folders
 
-    def __read_email(self, messages_json_path, email_address, n_of_massages, folder):
+    def __read_email(self, email_address, subject, folder, sender, n_of_massages, subject_filter, messages_json_path):
         """
         Método privado para ler e-mails de um endereço específico.
 
@@ -142,22 +143,36 @@ class MSGraphAPI:
         n_of_massages : int
             Número de mensagens a serem recuperadas.
         """
-        
 
+        email_filter = []
+        email_filter_url = []
+
+        if folder:
+            df_folders = self.list_email_folders(email_address)
+            folder_id = df_folders.loc[df_folders['displayName'] == folder, 'id'].iloc[0]
+            folder= f"/mailFolders/{folder_id}"
+        
+        if sender:
+            email_filter.append(f"sender/emailAddress/address eq '{sender}'")
+
+        if email_filter:
+            email_filter_joined = " and ".join(email_filter)
+            email_filter_url.append(f"$filter={email_filter_joined}")
+        n_of_massages = ''
+        if n_of_massages:
+            email_filter_url.append(f"$top={n_of_massages}")
+                
         access_token = self.__get_access_token()
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
         }
-        if folder == 'all':
-            url = f"https://graph.microsoft.com/v1.0/users/{email_address}/messages?$top={n_of_massages}"
-        else:
-            df_folders = self.list_email_folders(email_address)
-            folder_id = df_folders.loc[df_folders['displayName'] == folder, 'id'].iloc[0]
-            print(folder_id)
+        
 
-            url = f"https://graph.microsoft.com/v1.0/users/{email_address}/mailFolders/{folder_id}/messages?$top={n_of_massages}"
+        email_filter_url = "&".join(email_filter_url)
 
+        url = f"https://graph.microsoft.com/v1.0/users/{email_address}{folder}/messages?{email_filter_url}"
+        print(url)
         response = requests.get(url, headers=headers)
         
         if response.status_code == 200:
@@ -233,7 +248,7 @@ class MSGraphAPI:
 
         return df
 
-    def get_df_emails(self, email_address, n_of_massages=10, subject_filter="", folder="all", messages_json_path='messages.json'):
+    def get_df_emails(self, email_address, subject='', folder='', sender='', n_of_massages=10, subject_filter="", messages_json_path='messages.json'):
         """
         Método público para obter as mensagens de e-mail e organizá-las em um DataFrame apenas com colunas normalmente necessárias, sem todos os atributos do e-mail.
 
@@ -251,7 +266,7 @@ class MSGraphAPI:
         df_emails : pandas.DataFrame
             DataFrame organizado com as mensagens de e-mail.
         """
-        self.__read_email(messages_json_path, email_address, n_of_massages, folder)
+        self.__read_email(email_address, subject, folder, sender, n_of_massages, subject_filter, messages_json_path)
         df_raw_emails = self.__json_to_dataframe(messages_json_path)
         df_emails = self.__organize_df_emails(df_raw_emails)
         if subject_filter != "":
@@ -261,7 +276,7 @@ class MSGraphAPI:
     # api = MSGraphAPI()
     # df_emails = api.get_df_emails("anakin.skywalker@fitenergia.com.br")
 
-    def get_raw_df_emails(self, email_address, subject_filter="", folder="all", n_of_massages=10, messages_json_path='messages.json'):
+    def get_raw_df_emails(self, email_address, subject='', folder='', sender='', n_of_massages=10, subject_filter="", messages_json_path='messages.json'):
         """
         Método público para obter as mensagens de e-mail e organizá-las em um DataFrame com todos os atributos recebidos.
 
@@ -279,7 +294,7 @@ class MSGraphAPI:
         df_emails : pandas.DataFrame
             DataFrame completo com as mensagens de e-mail e todos os atributos.
         """
-        self.__read_email(messages_json_path, email_address, n_of_massages, folder)
+        self.__read_email(email_address, subject, folder, sender, n_of_massages, subject_filter, messages_json_path)
         df_raw_emails = self.__json_to_dataframe(messages_json_path)
         if subject_filter != "":
             df_raw_emails = self.__filter_subject(df_raw_emails, subject_filter)
