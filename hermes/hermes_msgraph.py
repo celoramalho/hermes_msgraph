@@ -238,7 +238,7 @@ class MSGraphAPI:
         if not df_mail_folders.empty:
             return df_mail_folders
 
-    def __read_email(self, email_address, subject, folder, sender, n_of_massages, subject_filter, messages_json_path):
+    def __read_email(self, email_address, subject, folder, sender, n_of_massages, has_attachments, subject_filter, messages_json_path):
         """
         Private method to read emails from a specific address.
 
@@ -277,6 +277,8 @@ class MSGraphAPI:
         if subject:
             email_filter.append(self.__ulr_filter_subject(subject))
             #email_filter.append(f"subject eq '{subject}'")
+        if has_attachments:
+            email_filter.append(f"hasAttachments eq {str(has_attachments).lower()}")
 
         if email_filter:
             email_filter_joined = " and ".join(email_filter)
@@ -348,7 +350,7 @@ class MSGraphAPI:
         df_emails = df_emails[columns]
         return df_emails
 
-    def get_df_emails(self, email_address, subject='', folder='', sender='', n_of_massages=10, subject_filter="", messages_json_path='messages.json'):
+    def get_df_emails(self, email_address, subject='', folder='', sender='', n_of_massages=10, has_attachments = '', subject_filter="", messages_json_path='messages.json'):
         """
         Public method to retrieve email messages and organize them into a DataFrame with only essential columns, excluding all email attributes.
 
@@ -374,7 +376,7 @@ class MSGraphAPI:
         df_emails : pandas.DataFrame
             Organized DataFrame with email messages.
         """
-        self.__read_email(email_address, subject, folder, sender, n_of_massages, subject_filter, messages_json_path)
+        self.__read_email(email_address, subject, folder, sender, n_of_massages, has_attachments, subject_filter, messages_json_path)
         df_raw_emails = self.__json_to_dataframe(messages_json_path)
         if not df_raw_emails.empty:
             df_emails = self.__organize_df_emails(df_raw_emails)
@@ -389,7 +391,7 @@ class MSGraphAPI:
     # api = MSGraphAPI()
     # df_emails = api.get_df_emails("anakin.skywalker@github.com")
 
-    def get_raw_df_emails(self, email_address, subject='', folder='', sender='', n_of_massages=10, subject_filter="", messages_json_path='messages.json'):
+    def get_raw_df_emails(self, email_address, subject='', folder='', sender='', n_of_massages=10, has_attachments = '', subject_filter="", messages_json_path='messages.json'):
         """
         Public method to retrieve email messages and organize them into a DataFrame with all received attributes.
 
@@ -415,7 +417,7 @@ class MSGraphAPI:
         df_emails : pandas.DataFrame
             Full DataFrame with email messages and all attributes.
         """
-        self.__read_email(email_address, subject, folder, sender, n_of_massages, subject_filter, messages_json_path)
+        self.__read_email(email_address, subject, folder, sender, n_of_massages, has_attachments, subject_filter, messages_json_path)
         df_raw_emails = self.__json_to_dataframe(messages_json_path)
         if subject_filter != "":
             df_raw_emails = self.__filter_subject(df_raw_emails, subject_filter)
