@@ -4,6 +4,8 @@
 import json
 import requests
 import yaml
+import os
+import base64
 import pandas as pd
 
 class MSGraphAPI:
@@ -182,6 +184,51 @@ class MSGraphAPI:
 
         return df
 
+    def list_email_attachments(self, email_address, message_id):
+        access_token = self.__get_access_token()
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        url = f"https://graph.microsoft.com/v1.0/users/{email_address}/messages/{message_id}/attachments"
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            return response.json().get('value', [])
+        else:
+            print(f"Error: {response.status_code}")
+            return None
+    
+    def download_attachment(self, email_address, message_id, attachment_id, file_name):
+        access_token = self.__get_access_token()  # Função para obter o token de acesso
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # URL para acessar o anexo
+        url = f"https://graph.microsoft.com/v1.0/users/{email_address}/messages/{message_id}/attachments/{attachment_id}"
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            attachment_data = response.json()
+            
+            # Criar diretório se não existir
+            directory = os.path.dirname(file_name)
+            os.makedirs(directory, exist_ok=True)
+            
+            # Salvar o conteúdo do anexo no arquivo
+            with open(file_name, "wb") as file:
+                file.write(base64.b64decode(attachment_data['contentBytes']))
+                #file.write(bytes(attachment_data['contentBytes'], 'utf-8'))
+            print(f"Attachment saved as {file_name}")
+        else:
+            print(f"Error: {response.status_code}")
+
+
+
+
     def get_email_folders(self, email_address):
         """
         Retrieves the email folders for the specified user.
@@ -298,7 +345,7 @@ class MSGraphAPI:
             email_filter_url = ''
 
         url = f"https://graph.microsoft.com/v1.0/users/{email_address}{folder}/messages?{email_filter_url}"
-        print(url)
+        #print(url)
         response = requests.get(url, headers=headers)
         
         if response.status_code == 200:
@@ -346,7 +393,7 @@ class MSGraphAPI:
         """
         columns = ['subject', 'isRead', 'sentDateTime', 'receivedDateTime', 'sender.emailAddress.name', 
                    'sender.emailAddress.address', 'from.emailAddress.name', 'from.emailAddress.address', 
-                   'bodyPreview', 'body.contentType', 'body.content']
+                   'bodyPreview', 'body.contentType', 'body.content', 'message_id']
         df_emails = df_emails[columns]
         return df_emails
 
@@ -381,8 +428,7 @@ class MSGraphAPI:
         if not df_raw_emails.empty:
             df_emails = self.__organize_df_emails(df_raw_emails)
         else:
-            df_emails = None
-            print("No emails found using the parameters passed.")
+            #print("No emails found using the parameters passed.")
             pass
         if subject_filter != "":
             df_emails = self.__filter_subject(df_emails, subject_filter)
