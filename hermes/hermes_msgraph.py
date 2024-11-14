@@ -227,8 +227,6 @@ class MSGraphAPI:
             print(f"Error: {response.status_code}")
 
 
-
-
     def get_email_folders(self, email_address):
         """
         Retrieves the email folders for the specified user.
