@@ -391,7 +391,7 @@ class MSGraphAPI:
         """
         columns = ['subject', 'isRead', 'sentDateTime', 'receivedDateTime', 'sender.emailAddress.name', 
                    'sender.emailAddress.address', 'from.emailAddress.name', 'from.emailAddress.address', 
-                   'bodyPreview', 'body.contentType', 'body.content', 'message_id']
+                   'bodyPreview', 'body.contentType', 'body.content', 'id']
         df_emails = df_emails[columns]
         return df_emails
 
