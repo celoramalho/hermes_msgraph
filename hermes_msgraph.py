@@ -9,7 +9,7 @@ import base64
 import pandas as pd
 
 
-class MSGraphAPI:
+class HermesMSGraph:
     """
     Class to interact with the Microsoft Graph API for sending and reading emails.
 
