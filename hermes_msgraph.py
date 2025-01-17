@@ -47,8 +47,7 @@ class HermesMSGraph:
         RuntimeError:
             If the request fails when trying to obtain the access token.
         """
-        url = f"https://login.microsoftonline.com/{
-            self.tenant_id}/oauth2/v2.0/token"
+        url = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
         payload = {
             "grant_type": "client_credentials",
             "client_id": self.client_id,
@@ -182,8 +181,7 @@ class HermesMSGraph:
             "Content-Type": "application/json",
         }
 
-        url = f"https://graph.microsoft.com/v1.0/users/{
-            mailbox_address}/messages/{message_id}/attachments"
+        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{message_id}/attachments"
         response = requests.get(url, headers=headers)
 
         if response.status_code == 200:
@@ -202,8 +200,7 @@ class HermesMSGraph:
         }
 
         # URL para acessar o anexo
-        url = f"https://graph.microsoft.com/v1.0/users/{
-            mailbox_address}/messages/{message_id}/attachments/{attachment_id}"
+        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{message_id}/attachments/{attachment_id}"
         response = requests.get(url, headers=headers)
 
         if response.status_code == 200:
@@ -221,7 +218,7 @@ class HermesMSGraph:
         else:
             print(f"Error: {response.status_code}")
 
-    def get_email_folders(self, mailbox_address):
+    def list_mailbox_folders(self, mailbox_address):
         """
         Retrieves the email folders for the specified user.
 
@@ -245,21 +242,26 @@ class HermesMSGraph:
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         }
-        url = f"https://graph.microsoft.com/v1.0/users/{
-            mailbox_address}/mailfolders/delta?$select=displayname"
-
+        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/mailfolders/delta?$select=displayname"
+        all_folders = []
         # https://stackoverflow.com/questions/42901755/microsoft-graph-outlook-mail-list-all-mail-folders-not-just-the-top-level-o
         # url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages?$top={n_of_messages}"
 
-        response = requests.get(url, headers=headers)
+        while url:
+            response = requests.get(url, headers=headers)
 
-        if response.status_code == 200:
-            mail_folders = response.json().get("value", [])
-            return mail_folders
-        else:
-            print(f"Error reading emails: {response.status_code}")
+            if response.status_code == 200:
+                data = response.json()
+                #mail_folders = response.json().get("value", [])
+                all_folders.extend(data.get("value", []))
 
-    def list_email_folders(self, mailbox_address):
+                url = data.get("@odata.nextLink")
+            else:
+                print(f"Error reading emails: {response.status_code}")
+
+        return all_folders
+
+    def get_df_mailbox_folders(self, mailbox_address):
         """
         Lists email folders and returns a DataFrame.
 
@@ -273,7 +275,7 @@ class HermesMSGraph:
         pandas.DataFrame
             DataFrame containing the email folders.
         """
-        mail_folders = self.get_email_folders(mailbox_address)
+        mail_folders = self.list_mailbox_folders(mailbox_address)
         df_mail_folders = pd.DataFrame(mail_folders)
         if not df_mail_folders.empty:
             return df_mail_folders
@@ -318,10 +320,14 @@ class HermesMSGraph:
         email_filter_url = []
 
         if folder:
-            df_folders = self.list_email_folders(mailbox_address)
-            folder_id = df_folders.loc[df_folders["displayName"] == folder, "id"].iloc[
-                0
-            ]
+            df_folders = self.get_df_mailbox_folders(mailbox_address)
+            folder_id = None
+            for index, existing_folder in df_folders.iterrows():
+                if existing_folder["displayName"] == folder:
+                    folder_id = df_folders.loc[df_folders["displayName"] == folder, "id"].iloc[0]
+            
+            if not folder_id:
+                raise ValueError(f"Folder '{folder}' not found for user '{mailbox_address}'")
             folder = f"/mailFolders/{folder_id}"
 
         if sender:
@@ -339,8 +345,7 @@ class HermesMSGraph:
 
         if has_attachments:
             email_filter.append(
-                f"hasAttachments eq {
-                                str(has_attachments).lower()}"
+                f"hasAttachments eq {str(has_attachments).lower()}"
             )
 
         if email_filter:
@@ -360,8 +365,7 @@ class HermesMSGraph:
         else:
             email_filter_url = ""
 
-        url = f"https://graph.microsoft.com/v1.0/users/{
-            mailbox_address}{folder}/messages?{email_filter_url}"
+        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}{folder}/messages?{email_filter_url}"
         #print(url)
         response = requests.get(url, headers=headers)
 
