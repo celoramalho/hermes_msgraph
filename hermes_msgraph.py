@@ -176,7 +176,7 @@ class HermesMSGraph:
 
         if not data_json:
             print(f"No emails found for {mailbox_address}")
-            return pd.DataFrame()
+            return None
         else:
             if messages_json_path:
                 try:
@@ -242,6 +242,9 @@ class HermesMSGraph:
             less_than_date=less_than_date,
         )
 
+        if not json_emails:
+            return pd.DataFrame()
+
         df_emails = pd.json_normalize(json_emails)
        
         if data == "simple":
@@ -253,7 +256,7 @@ class HermesMSGraph:
     
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}"
 
-        response_json = self.__get_json_response_by_url(url)
+        response_json = self.__get_json_response_by_url(url, get_value=False)
         if not response_json:
             raise HermesGraphAPIError(f"Failed to retrieve email with ID {email_id}")
         
