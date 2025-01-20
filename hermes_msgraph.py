@@ -17,37 +17,13 @@ class HermesMSGraph:
     """
 
     def __init__(self, client_id, client_secret, tenant_id):
-        """
-        Initializes the class with the credentials passed as parameters.
-
-        Parameters:
-        ----------
-        client_id : str
-            Client ID registered in Azure AD.
-        client_secret : str
-            Client secret registered in Azure AD.
-        tenant_id : str
-            Directory (tenant) ID in Azure AD.
-        """
         self.client_id = client_id
         self.client_secret = client_secret
         self.tenant_id = tenant_id
         #self.access_token = self.__get_access_token()
 
     def __get_access_token(self):
-        """
-        Private method to obtain the access token for the Microsoft Graph API.
 
-        Returns:
-        -------
-        access_token : str
-            Access token to make API calls to Microsoft Graph.
-
-        Raises:
-        ------
-        RuntimeError:
-            If the request fails when trying to obtain the access token.
-        """
         url = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
         payload = {
             "grant_type": "client_credentials",
@@ -63,34 +39,30 @@ class HermesMSGraph:
         response_data = response.json()
         access_token = response_data["access_token"]
         return access_token
-
-    def send_email(self, sender_mail, subject, body, to_address, cc_address=None):
-        """
-        Sends an email using the Microsoft Graph API.
-
-        Parameters:
-        ----------
-        sender_mail : str
-            Sender's email address.
-        subject : str
-            Email subject.
-        body : str
-            Email body.
-        to_address : str
-            Recipient's email address.
-        cc_address : str, optional
-            CC email address, default is None.
-
-        Returns:
-        -------
-        None
-        """
+    
+    def __get_http(self, url):
         access_token = self.__get_access_token()
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         }
+        response = requests.get(url, headers=headers)
 
+        return response
+    
+    def __post_http(self, url, payload):
+        access_token = self.__get_access_token()
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+        data = json.dumps(payload)
+
+        response = requests.post(url, headers=headers, data=data)
+
+        return response
+
+    def send_email(self, sender_mail, subject, body, to_address, cc_address=None):
         url = f"https://graph.microsoft.com/v1.0/users/{sender_mail}/sendMail"
 
         payload = {
@@ -105,7 +77,7 @@ class HermesMSGraph:
             "saveToSentItems": "true",
         }
 
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response = self.__post_http(url, payload=payload)
 
         if response.status_code == 200:
             print("Email sent successfully!")
@@ -136,21 +108,6 @@ class HermesMSGraph:
         return subject_filter_url
 
     def __filter_subject(self, df, subject_filter):
-        """
-        Filters the DataFrame for email messages matching the subject filter.
-
-        Parameters:
-        ----------
-        df : pandas.DataFrame
-            DataFrame of email messages.
-        subject_filter : str
-            Subject filter that may use asterisks for partial matching.
-
-        Returns:
-        -------
-        df : pandas.DataFrame
-            DataFrame filtered by subject.
-        """
         if subject_filter:
             # Case: starts and ends with asterisk -> "contains"
             if subject_filter.startswith("*") and subject_filter.endswith("*"):
@@ -176,107 +133,52 @@ class HermesMSGraph:
         return df
 
     def list_email_attachments(self, mailbox_address, message_id):
-        access_token = self.__get_access_token()
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        }
-
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{message_id}/attachments"
-        response = requests.get(url, headers=headers)
+        data_json = self.__get_json_response_by_url(url, get_value=True)
 
-        if response.status_code == 200:
-            return response.json().get("value", [])
-        else:
-            print(f"Error: {response.status_code}")
-            return None
+        return data_json
 
     def download_attachment(
         self, mailbox_address, message_id, attachment_id, file_name
     ):
-        access_token = self.__get_access_token()  # Função para obter o token de acesso
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        }
-
         # URL para acessar o anexo
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{message_id}/attachments/{attachment_id}"
-        response = requests.get(url, headers=headers)
+        data_json = self.__get_json_response_by_url(url, get_value=False)
 
-        if response.status_code == 200:
-            attachment_data = response.json()
-
+        if data_json:
             # Criar diretório se não existir
             directory = os.path.dirname(file_name)
             os.makedirs(directory, exist_ok=True)
 
             # Salvar o conteúdo do anexo no arquivo
             with open(file_name, "wb") as file:
-                file.write(base64.b64decode(attachment_data["contentBytes"]))
+                file.write(base64.b64decode(data_json["contentBytes"]))
                 # file.write(bytes(attachment_data['contentBytes'], 'utf-8'))
             print(f"Attachment saved as {file_name}")
-        else:
-            print(f"Error: {response.status_code}")
 
     def list_mailbox_folders(self, mailbox_address):
-        """
-        Retrieves the email folders for the specified user.
-
-        Parameters:
-        ----------
-        mailbox_address : str
-            User's email address.
-
-        Returns:
-        -------
-        list
-            A list containing the email folders.
-
-        Raises:
-        ------
-        RuntimeError:
-            If an error occurs when accessing the email folders.
-        """
-        access_token = self.__get_access_token()
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        }
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/mailfolders/delta?$select=displayname"
+        
         all_folders = []
         # https://stackoverflow.com/questions/42901755/microsoft-graph-outlook-mail-list-all-mail-folders-not-just-the-top-level-o
         # url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages?$top={n_of_messages}"
 
         while url:
-            response = requests.get(url, headers=headers)
+            data = self.__get_json_response_by_url(url, get_value= False)
 
-            if response.status_code == 200:
-                data = response.json()
+            if data:
                 #mail_folders = response.json().get("value", [])
                 all_folders.extend(data.get("value", []))
 
                 url = data.get("@odata.nextLink")
             else:
-                print(f"Error reading emails: {response.status_code}")
+                print(f"No folders found for {mailbox_address}")
 
         return all_folders
 
     def get_mailbox_folders(self, mailbox_address):
-        """
-        Lists email folders and returns a DataFrame.
-
-        Parameters:
-        ----------
-        mailbox_address : str
-            User's email address.
-
-        Returns:
-        -------
-        pandas.DataFrame
-            DataFrame containing the email folders.
-        """
         mail_folders = self.list_mailbox_folders(mailbox_address)
+
         df_mail_folders = pd.DataFrame(mail_folders)
         if not df_mail_folders.empty:
             return df_mail_folders
@@ -293,30 +195,6 @@ class HermesMSGraph:
         greater_than_date,
         less_than_date,
     ):
-        """
-        Private method to read emails from a specific address.
-
-        Parameters:
-        ----------
-        mailbox_address : str
-            Email address to read messages from.
-        subject : str
-            Subject to filter.
-        folder : str
-            Folder name to filter messages.
-        sender : str
-            Sender's address.
-        n_of_messages : int
-            Number of messages to retrieve.
-        subject_filter : str
-            Subject filter to apply to messages.
-        messages_json_path : str
-            Path to the JSON file where messages will be saved.
-
-        Returns:
-        -------
-        None
-        """
         email_filter = []
         email_filter_url = []
 
@@ -504,28 +382,27 @@ class HermesMSGraph:
             emails = df_emails
 
         return emails
-    
-    def __get_json_response_by_url(self, url):
-        access_token = self.__get_access_token()
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        }
-        response = requests.get(url, headers=headers)
+
+    def __get_json_response_by_url(self, url, get_value = True):
+        response = self.__get_http(url)
 
         if response.status_code == 200:
-            json_response = response.json()
-            json_responde = response.json().get("value", [])
+            json_response = response.json().get("value", [])
+
+            if json_response == None or not get_value:
+                json_response = response.json()
+
         else:
             print(f"Error in HTTP request to {url}: {response.status_code} - {response.text}")
             json_response = None
+
         return json_response
 
     def __read_email_by_id(self, email_id, mailbox_address, messages_json_path="messages.json"):
     
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}"
 
-        response_json = self.__get_reponse_by_url(url)
+        response_json = self.__get_json_response_by_url(url)
 
         email_json = response_json
         

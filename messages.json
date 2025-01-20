@@ -1,44 +1,52 @@
 [
     {
-        "@odata.etag": "W/\"CQAAABYAAAA6j7nDq9DyTqmysdOkqK57AAAAAAkU\"",
-        "id": "AQMkADVmNDVmOWQxLTE3NDYtNDlmNC05NDYyLWU3MGY4Mjk5AGU2MTQARgAAA5ezvirwbQVAlnCFXP4PbtEHADqPucOr0PJOqbKx06SornsAAAIBDAAAADqPucOr0PJOqbKx06SornsAAAIFWAAAAA==",
-        "createdDateTime": "2025-01-17T02:40:29Z",
-        "lastModifiedDateTime": "2025-01-17T02:40:29Z",
-        "changeKey": "CQAAABYAAAA6j7nDq9DyTqmysdOkqK57AAAAAAkU",
+        "@odata.etag": "W/\"CQAAABYAAAA6j7nDq9DyTqmysdOkqK57AAACWxCz\"",
+        "id": "AAMkADVmNDVmOWQxLTE3NDYtNDlmNC05NDYyLWU3MGY4Mjk5ZTYxNABGAAAAAACXs74q8G0FQJZwhVz_D27RBwA6j7nDq9DyTqmysdOkqK57AAAAAAEPAAA6j7nDq9DyTqmysdOkqK57AAACW8nLAAA=",
+        "createdDateTime": "2025-01-20T17:52:14Z",
+        "lastModifiedDateTime": "2025-01-20T17:52:14Z",
+        "changeKey": "CQAAABYAAAA6j7nDq9DyTqmysdOkqK57AAACWxCz",
         "categories": [],
-        "receivedDateTime": "2025-01-17T02:40:29Z",
-        "sentDateTime": "2025-01-17T02:40:27Z",
+        "receivedDateTime": "2025-01-20T17:52:14Z",
+        "sentDateTime": "2025-01-20T17:52:14Z",
         "hasAttachments": false,
-        "internetMessageId": "<CPUP215MB18273D66CBD2F0329E7DB74AD81B2@CPUP215MB1827.LAMP215.PROD.OUTLOOK.COM>",
-        "subject": "teste1",
-        "bodyPreview": "16-01-2025\r\n\r\nTeste\r\n\r\nMds agr que caiu a ficha que tamo em 2025\r\n\r\nJesus Cristo tá tudo passando mto rapido!!! 23:39 de uma quinta em janeiro de 2025 e eu aqui testando esse trem pra pegar as faturas da FIT! Boa nerd",
+        "internetMessageId": "<CPUP215MB18271F626183B3A943B667EFD8E72@CPUP215MB1827.LAMP215.PROD.OUTLOOK.COM>",
+        "subject": "Teste de e-mail RPA",
+        "bodyPreview": "Isso é um teste",
         "importance": "normal",
-        "parentFolderId": "AQMkADVmNDVmOWQxLTE3NDYtNDlmNC05NDYyLWU3MGY4Mjk5AGU2MTQALgAAA5ezvirwbQVAlnCFXP4PbtEBADqPucOr0PJOqbKx06SornsAAAIBDAAAAA==",
-        "conversationId": "AAQkADVmNDVmOWQxLTE3NDYtNDlmNC05NDYyLWU3MGY4Mjk5ZTYxNAAQAJu1ZDPa4MFElFughlYebgQ=",
-        "conversationIndex": "AQHbaIkDm7VkM9rgwUSUW6CGVh5uBA==",
+        "parentFolderId": "AQMkADVmNDVmOWQxLTE3NDYtNDlmNC05NDYyLWU3MGY4Mjk5AGU2MTQALgAAA5ezvirwbQVAlnCFXP4PbtEBADqPucOr0PJOqbKx06SornsAAAIBDwAAAA==",
+        "conversationId": "AAQkADVmNDVmOWQxLTE3NDYtNDlmNC05NDYyLWU3MGY4Mjk5ZTYxNAAQAHsKmOFTz0dNs5HJ9-h4ekY=",
+        "conversationIndex": "AQHba2QKewqY4VPPR02zkcn3+Hh6Rg==",
         "isDeliveryReceiptRequested": false,
         "isReadReceiptRequested": false,
-        "isRead": false,
-        "isDraft": false,
-        "webLink": "https://outlook.office365.com/owa/?ItemID=AQMkADVmNDVmOWQxLTE3NDYtNDlmNC05NDYyLWU3MGY4Mjk5AGU2MTQARgAAA5ezvirwbQVAlnCFXP4PbtEHADqPucOr0PJOqbKx06SornsAAAIBDAAAADqPucOr0PJOqbKx06SornsAAAIFWAAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem",
+        "isRead": true,
+        "isDraft": true,
+        "webLink": "https://outlook.office365.com/owa/?ItemID=AAMkADVmNDVmOWQxLTE3NDYtNDlmNC05NDYyLWU3MGY4Mjk5ZTYxNABGAAAAAACXs74q8G0FQJZwhVz%2BD27RBwA6j7nDq9DyTqmysdOkqK57AAAAAAEPAAA6j7nDq9DyTqmysdOkqK57AAACW8nLAAA%3D&exvsurl=1&viewmodel=ReadMessageItem",
         "inferenceClassification": "focused",
         "body": {
-            "contentType": "html",
-            "content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><style type=\"text/css\" style=\"display:none\">\r\n<!--\r\np\r\n\t{margin-top:0;\r\n\tmargin-bottom:0}\r\n-->\r\n</style></head><body dir=\"ltr\"><div class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">16-01-2025</div><div class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><br></div><div class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Teste</div><div class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><br></div><div class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Mds agr que caiu a ficha que tamo em 2025</div><div class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><br></div><div class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Jesus Cristo tá tudo passando mto rapido!!! 23:39 de uma quinta em janeiro de 2025 e eu aqui testando esse trem pra pegar as faturas da FIT! Boa nerd</div></body></html>"
+            "contentType": "text",
+            "content": "Isso é um teste"
         },
         "sender": {
             "emailAddress": {
                 "name": "RPA Testes",
-                "address": "rpa.testes@fitenergia.com.br"
+                "address": "rpa.test@fitenergia.com.br"
             }
         },
         "from": {
             "emailAddress": {
                 "name": "RPA Testes",
-                "address": "rpa.testes@fitenergia.com.br"
+                "address": "rpa.test@fitenergia.com.br"
             }
         },
         "toRecipients": [
+            {
+                "emailAddress": {
+                    "name": "Marcelo Ramalho de Rodrigues",
+                    "address": "marcelo.ramalho@fitenergia.com.br"
+                }
+            }
+        ],
+        "ccRecipients": [
             {
                 "emailAddress": {
                     "name": "RPA Testes",
@@ -46,7 +54,6 @@
                 }
             }
         ],
-        "ccRecipients": [],
         "bccRecipients": [],
         "replyTo": [],
         "flag": {
