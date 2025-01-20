@@ -262,7 +262,7 @@ class HermesMSGraph:
 
         return all_folders
 
-    def get_df_mailbox_folders(self, mailbox_address):
+    def get_mailbox_folders(self, mailbox_address):
         """
         Lists email folders and returns a DataFrame.
 
@@ -321,7 +321,7 @@ class HermesMSGraph:
         email_filter_url = []
 
         if folder:
-            df_folders = self.get_df_mailbox_folders(mailbox_address)
+            df_folders = self.get_mailbox_folders(mailbox_address)
             folder_id = None
             for index, existing_folder in df_folders.iterrows():
                 if existing_folder["displayName"] == folder:
@@ -401,7 +401,7 @@ class HermesMSGraph:
         df_emails = pd.json_normalize(json_data)
         return df_emails
 
-    def __organize_df_emails(self, df_emails):
+    def __filter_columns_df_emails(self, df_emails):
         """
         Private method to organize the email messages DataFrame with relevant columns.
 
@@ -432,70 +432,11 @@ class HermesMSGraph:
         df_emails = df_emails[columns]
         return df_emails
 
-    def get_df_emails(
-        self,
-        mailbox_address,
-        subject="",
-        folder="",
-        sender="",
-        n_of_messages=10,
-        has_attachments="",
-        messages_json_path="messages.json",
-        greater_than_date=None,
-        less_than_date=None,
-    ):
-        """
-        Public method to retrieve email messages and organize them into a DataFrame with only essential columns, excluding all email attributes.
-
-        Parameters:
-        ----------
-        mailbox_address : str
-            Email address from which to retrieve messages.
-        subject : str, optional
-            Subject to filter by, default is an empty string.
-        folder : str, optional
-            Folder to retrieve messages from, default is an empty string.
-        sender : str, optional
-            Sender's email address to filter by, default is an empty string.
-        n_of_messages : int, optional
-            Number of messages to retrieve, default is 10.
-        subject_filter : str, optional
-            Filter to apply to email subjects, default is an empty string.
-        messages_json_path : str, optional
-            Path to the JSON file where emails will be saved, default is 'messages.json'.
-
-        Returns:
-        -------
-        df_emails : pandas.DataFrame
-            Organized DataFrame with email messages.
-        """
-        self.__read_email(
-            mailbox_address=mailbox_address,
-            subject=subject,
-            folder=folder,
-            sender=sender,
-            n_of_messages=n_of_messages,
-            has_attachments=has_attachments,
-            messages_json_path=messages_json_path,
-            greater_than_date=greater_than_date,
-            less_than_date=less_than_date,
-        )
-        df_raw_emails = self.__json_to_dataframe(messages_json_path)
-        if not df_raw_emails.empty:
-            df_emails = self.__organize_df_emails(df_raw_emails)
-        else:
-            # print("No emails found using the parameters passed.")
-            df_emails = pd.DataFrame()
-        #if subject_filter != "":
-        #    df_emails = self.__filter_subject(df_emails, subject_filter)
-
-        return df_emails
-
     # Usage example:
     # api = MSGraphAPI()
     # df_emails = api.get_df_emails("anakin.skywalker@github.com")
 
-    def get_raw_df_emails(
+    def get_emails(
         self,
         mailbox_address,
         subject="",
@@ -506,6 +447,8 @@ class HermesMSGraph:
         messages_json_path="messages.json",
         greater_than_date=None,
         less_than_date=None,
+        format="dataframe",
+        data="all", #simple or all
     ):
         """
         Public method to retrieve email messages and organize them into a DataFrame with all received attributes.
@@ -546,31 +489,46 @@ class HermesMSGraph:
         df_raw_emails = self.__json_to_dataframe(messages_json_path)
         #if subject_filter != "":
         #    df_raw_emails = self.__filter_subject(df_raw_emails, subject_filter)
-        return df_raw_emails
+       
+        if data == "simple":
+            df_emails = self.__filter_columns_df_emails(df_raw_emails)
+        elif data == "all":
+            # print("No emails found using the parameters passed.")
+            df_emails = df_raw_emails
 
-    def __read_email_by_id(self, email_id, mailbox_address, messages_json_path="messages.json"):
-        
-        email = None
+            
+        if format == "json":
+            json_emails = df_emails.to_json(orient="records")
+            emails = json.loads(json_emails)
+        elif format == "dataframe":
+            emails = df_emails
 
+        return emails
+    
+    def __get_json_response_by_url(self, url):
         access_token = self.__get_access_token()
-        
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
-        }   
-
-        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}"
-        
+        }
         response = requests.get(url, headers=headers)
-        #print(f'URL: {url}')
-        if response.status_code == 200:
-            print(f"Status code: {response.status_code}")
-            email_json = response.json().get("value", [])
-            #print(f'Response equals to: {response.json()}')
-        else:
-            print(f"Erro ao tentar pegar o e-mail: {response.status_code} - {response.text}")
-            emai
 
+        if response.status_code == 200:
+            json_response = response.json()
+            json_responde = response.json().get("value", [])
+        else:
+            print(f"Error in HTTP request to {url}: {response.status_code} - {response.text}")
+            json_response = None
+        return json_response
+
+    def __read_email_by_id(self, email_id, mailbox_address, messages_json_path="messages.json"):
+    
+        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}"
+
+        response_json = self.__get_reponse_by_url(url)
+
+        email_json = response_json
+        
         return email_json
 
 
@@ -590,4 +548,61 @@ class HermesMSGraph:
         df_emails : pandas.DataFrame
             DataFrame with email messages.
         """
-        self.__read_email_by_id(email_id, mailbox_address, messages_json_path)
+        email_json = self.__read_email_by_id(email_id, mailbox_address, messages_json_path)
+        email_df = pd.DataFrame(email_json)
+        return email_df
+
+    #legacy
+    def get_df_emails(
+        self,
+        mailbox_address,
+        subject="",
+        folder="",
+        sender="",
+        n_of_messages=10,
+        has_attachments="",
+        messages_json_path="messages.json",
+        greater_than_date=None,
+        less_than_date=None,
+    ):
+        emails = self.get_emails(
+            mailbox_address=mailbox_address,
+            subject=subject,
+            folder=folder,
+            sender=sender,
+            n_of_messages=n_of_messages,
+            has_attachments=has_attachments,
+            messages_json_path=messages_json_path,
+            greater_than_date=greater_than_date,
+            less_than_date=less_than_date,
+            format="dataframe",
+            data="simple",
+        )
+        return emails
+
+    def get_raw_df_emails(
+        self,
+        mailbox_address,
+        subject="",
+        folder="",
+        sender="",
+        n_of_messages=10,
+        has_attachments="",
+        messages_json_path="messages.json",
+        greater_than_date=None,
+        less_than_date=None,
+    ):
+        emails = self.get_emails(
+            mailbox_address=mailbox_address,
+            subject=subject,
+            folder=folder,
+            sender=sender,
+            n_of_messages=n_of_messages,
+            has_attachments=has_attachments,
+            messages_json_path=messages_json_path,
+            greater_than_date=greater_than_date,
+            less_than_date=less_than_date,
+            format="dataframe",
+            data="all",
+        )
+        return emails
