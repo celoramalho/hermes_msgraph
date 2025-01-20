@@ -32,6 +32,7 @@ class HermesMSGraph:
         self.client_id = client_id
         self.client_secret = client_secret
         self.tenant_id = tenant_id
+        #self.access_token = self.__get_access_token()
 
     def __get_access_token(self):
         """
@@ -546,3 +547,47 @@ class HermesMSGraph:
         #if subject_filter != "":
         #    df_raw_emails = self.__filter_subject(df_raw_emails, subject_filter)
         return df_raw_emails
+
+    def __read_email_by_id(self, email_id, mailbox_address, messages_json_path="messages.json"):
+        
+        email = None
+
+        access_token = self.__get_access_token()
+        
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }   
+
+        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}"
+        
+        response = requests.get(url, headers=headers)
+        #print(f'URL: {url}')
+        if response.status_code == 200:
+            print(f"Status code: {response.status_code}")
+            email_json = response.json().get("value", [])
+            #print(f'Response equals to: {response.json()}')
+        else:
+            print(f"Erro ao tentar pegar o e-mail: {response.status_code} - {response.text}")
+            emai
+
+        return email_json
+
+
+    def get_email_by_id(self, email_id, mailbox_address, messages_json_path="messages.json"):
+        """
+        Public method to retrieve email messages by their ID.
+
+        Parameters:
+        ----------
+        email_id : str
+            ID of the email to retrieve.
+        messages_json_path : str, optional
+            Path to the JSON file where messages will be saved, default is 'messages.json'.
+
+        Returns:
+        -------
+        df_emails : pandas.DataFrame
+            DataFrame with email messages.
+        """
+        self.__read_email_by_id(email_id, mailbox_address, messages_json_path)
