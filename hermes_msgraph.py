@@ -118,41 +118,36 @@ class HermesMSGraph:
             return df_mail_folders
 
 
-    def __define_query_utl_by_email_filters(self, mailbox_address, subject, folder, sender, n_of_messages, has_attachments, messages_json_path, greater_than_date, less_than_date):
-        email_filter = []
-        email_filter_url = []
+    def __build_email_query_params(
+        self,
+        subject=None,
+        sender=None,
+        n_of_messages=None,
+        has_attachments=None,
+        greater_than_date=None,
+        less_than_date=None,
+    ):
+        filters = []
+        query_params = []
 
-        if sender:
-            email_filter.append(f"sender/emailAddress/address eq '{sender}'")
+        def add_filter(condition):
+            if condition:
+                filters.append(condition)
 
-        if subject:
-            email_filter.append(self.__ulr_filter_subject(subject))
-            # email_filter.append(f"subject eq '{subject}'")
+        add_filter(f"sender/emailAddress/address eq '{sender}'" if sender else None)
+        add_filter(self.__url_filter_subject(subject) if subject else None)
+        add_filter(f"receivedDateTime gt {greater_than_date}" if greater_than_date else None)
+        add_filter(f"receivedDateTime lt {less_than_date}" if less_than_date else None)
+        add_filter(f"hasAttachments eq {str(has_attachments).lower()}" if has_attachments else None)
 
-        if greater_than_date:
-            email_filter.append(f"receivedDateTime gt {greater_than_date}")
-
-        if less_than_date:
-            email_filter.append(f"receivedDateTime lt {less_than_date}")
-
-        if has_attachments:
-            email_filter.append(
-                f"hasAttachments eq {str(has_attachments).lower()}"
-            )
-
-        if email_filter:
-            email_filter_joined = " and ".join(email_filter)
-            email_filter_url.append(f"$filter={email_filter_joined}")
+        if filters:
+            query_params.append(f"$filter={' and '.join(filters)}")
 
         if n_of_messages:
-            email_filter_url.append(f"$top={n_of_messages}")
+            query_params.append(f"$top={n_of_messages}")
 
-        if email_filter_url:
-            email_filter_url = "&".join(email_filter_url)
-        else:
-            email_filter_url = ""
+        return "&".join(query_params) if query_params else ""
 
-        return email_filter_url
 
     def __read_emails(
         self,
@@ -179,7 +174,7 @@ class HermesMSGraph:
             folder = f"/mailFolders/{folder_id}"
 
 
-        email_filter_url = self.__define_query_utl_by_email_filters(mailbox_address, subject, folder, sender, n_of_messages, has_attachments, messages_json_path, greater_than_date, less_than_date)
+        email_filter_url = self.__build_email_query_params(subject, sender, n_of_messages, has_attachments, greater_than_date, less_than_date)
         
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}{folder}/messages?{email_filter_url}"
         #print(url)
