@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# https://graph.microsoft.com/v1.0/me/messages?$filter=subject eq '{subject}' and sender/emailAddress/address eq '{sender email address}' and sentDateTime ge 2023-05-17T07:28:08Z
-# coding: utf-8
 import json
 import requests
 import yaml
@@ -8,6 +5,7 @@ import os
 import base64
 import pandas as pd
 
+from classes.hermeshttp import HermesHttp
 
 class HermesMSGraph:
     """
@@ -20,47 +18,8 @@ class HermesMSGraph:
         self.client_id = client_id
         self.client_secret = client_secret
         self.tenant_id = tenant_id
+        self.http = HermesHttp(client_id, client_secret, tenant_id)
         #self.access_token = self.__get_access_token()
-
-    def __get_access_token(self):
-
-        url = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
-        payload = {
-            "grant_type": "client_credentials",
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "scope": "https://graph.microsoft.com/.default",
-        }
-        try:
-            response = requests.post(url, data=payload)
-        except Exception as e:
-            raise RuntimeError("Unable to make post request to get access token") from e
-
-        response_data = response.json()
-        access_token = response_data["access_token"]
-        return access_token
-    
-    def __get_http(self, url):
-        access_token = self.__get_access_token()
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        }
-        response = requests.get(url, headers=headers)
-
-        return response
-    
-    def __post_http(self, url, payload):
-        access_token = self.__get_access_token()
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        }
-        data = json.dumps(payload)
-
-        response = requests.post(url, headers=headers, data=data)
-
-        return response
 
     def send_email(self, sender_mail, subject, body, to_address, cc_address=None):
         url = f"https://graph.microsoft.com/v1.0/users/{sender_mail}/sendMail"
@@ -77,7 +36,7 @@ class HermesMSGraph:
             "saveToSentItems": "true",
         }
 
-        response = self.__post_http(url, payload=payload)
+        response = self.http.post(url, payload=payload)
 
         if response.status_code == 200:
             print("Email sent successfully!")
@@ -234,11 +193,6 @@ class HermesMSGraph:
         if n_of_messages:
             email_filter_url.append(f"$top={n_of_messages}")
 
-        access_token = self.__get_access_token()
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        }
         if email_filter_url:
             email_filter_url = "&".join(email_filter_url)
         else:
@@ -246,53 +200,26 @@ class HermesMSGraph:
 
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}{folder}/messages?{email_filter_url}"
         #print(url)
-        response = requests.get(url, headers=headers)
+        data_json = self.__get_json_response_by_url(url, get_value=True)
 
-        if response.status_code == 200:
-            messages = response.json().get("value", [])
+        if data_json:
             try:
                 with open(messages_json_path, "w+", encoding="utf-8") as file:
-                    json.dump(messages, file, ensure_ascii=False, indent=4)
+                    json.dump(data_json, file, ensure_ascii=False, indent=4)
             except Exception as e:
                 raise RuntimeError(
                     "Unable to save messages to messages.json file"
                 ) from e
         else:
-            print(f"Error reading emails: {response.status_code}")
+            print(f"No emails found for {mailbox_address}")
 
     def __json_to_dataframe(self, json_file_path):
-        """
-        Private method to convert a JSON file of email messages into a DataFrame.
-
-        Parameters:
-        ----------
-        json_file_path : str
-            Path to the JSON file with email messages.
-
-        Returns:
-        -------
-        df_emails : pandas.DataFrame
-            DataFrame containing email messages.
-        """
         with open(json_file_path, "r") as file:
             json_data = json.load(file)
         df_emails = pd.json_normalize(json_data)
         return df_emails
 
     def __filter_columns_df_emails(self, df_emails):
-        """
-        Private method to organize the email messages DataFrame with relevant columns.
-
-        Parameters:
-        ----------
-        df_emails : pandas.DataFrame
-            DataFrame with email messages.
-
-        Returns:
-        -------
-        df_emails : pandas.DataFrame
-            Organized DataFrame with specific columns.
-        """
         columns = [
             "subject",
             "isRead",
@@ -384,7 +311,7 @@ class HermesMSGraph:
         return emails
 
     def __get_json_response_by_url(self, url, get_value = True):
-        response = self.__get_http(url)
+        response = self.http.get(url)
 
         if response.status_code == 200:
             json_response = response.json().get("value", [])
@@ -428,6 +355,7 @@ class HermesMSGraph:
         email_json = self.__read_email_by_id(email_id, mailbox_address, messages_json_path)
         email_df = pd.DataFrame(email_json)
         return email_df
+
 
     #legacy
     def get_df_emails(
