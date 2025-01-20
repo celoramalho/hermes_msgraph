@@ -1,10 +1,10 @@
 import json
-import requests
-import yaml
 import os
+import sys
 import base64
 import pandas as pd
 
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from classes.hermeshttp import HermesHttp
 
 class HermesMSGraph:
@@ -233,7 +233,7 @@ class HermesMSGraph:
             greater_than_date=greater_than_date,
             less_than_date=less_than_date,
         )
-        
+
         df_emails = pd.json_normalize(json_emails)
        
         if data == "simple":
