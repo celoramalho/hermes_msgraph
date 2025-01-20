@@ -142,18 +142,8 @@ class HermesMSGraph:
         if not df_mail_folders.empty:
             return df_mail_folders
 
-    def __read_email(
-        self,
-        mailbox_address,
-        subject,
-        folder,
-        sender,
-        n_of_messages,
-        has_attachments,
-        messages_json_path,
-        greater_than_date,
-        less_than_date,
-    ):
+
+    def __define_query_utl_by_email_filters(self, mailbox_address, subject, folder, sender, n_of_messages, has_attachments, messages_json_path, greater_than_date, less_than_date):
         email_filter = []
         email_filter_url = []
 
@@ -198,6 +188,22 @@ class HermesMSGraph:
         else:
             email_filter_url = ""
 
+        return email_filter_url
+
+    def __read_email(
+        self,
+        mailbox_address,
+        subject,
+        folder,
+        sender,
+        n_of_messages,
+        has_attachments,
+        messages_json_path,
+        greater_than_date,
+        less_than_date,
+    ):
+        email_filter_url = self.__define_query_utl_by_email_filters(mailbox_address, subject, folder, sender, n_of_messages, has_attachments, messages_json_path, greater_than_date, less_than_date)
+        
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}{folder}/messages?{email_filter_url}"
         #print(url)
         data_json = self.__get_json_response_by_url(url, get_value=True)
