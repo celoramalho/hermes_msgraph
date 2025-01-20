@@ -19,7 +19,6 @@ class HermesMSGraph:
         self.client_secret = client_secret
         self.tenant_id = tenant_id
         self.http = HermesHttp(client_id, client_secret, tenant_id)
-        #self.access_token = self.__get_access_token()
 
     def send_email(self, sender_mail, subject, body, to_address, cc_address=None):
         url = f"https://graph.microsoft.com/v1.0/users/{sender_mail}/sendMail"
@@ -44,20 +43,20 @@ class HermesMSGraph:
             print(f"Error sending email: {response.status_code}")
 
 
-    def __get_json_response_by_url(self, url, get_value = True):
+    def __get_json_response_by_url(self, url, get_value=True):
         response = self.http.get(url)
-
+    
         if response.status_code == 200:
-            json_response = response.json().get("value", [])
-
-            if json_response == None or not get_value:
+            try:
                 json_response = response.json()
-
+                return json_response.get("value", []) if get_value else json_response
+            except ValueError:
+                print(f"Invalid JSON response from {url}")
+                return None
         else:
-            print(f"Error in HTTP request to {url}: {response.status_code} - {response.text}")
-            json_response = None
+            print(f"HTTP Error: {response.status_code} - {response.text}")
+            return None
 
-        return json_response
 
     def list_email_attachments(self, mailbox_address, message_id):
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{message_id}/attachments"
@@ -68,28 +67,21 @@ class HermesMSGraph:
     def download_attachment(
         self, mailbox_address, message_id, attachment_id, file_name
     ):
-        # URL para acessar o anexo
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{message_id}/attachments/{attachment_id}"
         data_json = self.__get_json_response_by_url(url, get_value=False)
 
         if data_json:
-            # Criar diretório se não existir
             directory = os.path.dirname(file_name)
             os.makedirs(directory, exist_ok=True)
 
-            # Salvar o conteúdo do anexo no arquivo
             with open(file_name, "wb") as file:
                 file.write(base64.b64decode(data_json["contentBytes"]))
-                # file.write(bytes(attachment_data['contentBytes'], 'utf-8'))
             print(f"Attachment saved as {file_name}")
 
     def list_mailbox_folders(self, mailbox_address):
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/mailfolders/delta?$select=displayname"
         
         all_folders = []
-        # https://stackoverflow.com/questions/42901755/microsoft-graph-outlook-mail-list-all-mail-folders-not-just-the-top-level-o
-        # url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages?$top={n_of_messages}"
-
         while url:
             data = self.__get_json_response_by_url(url, get_value= False)
 
@@ -141,6 +133,13 @@ class HermesMSGraph:
 
         return "&".join(query_params) if query_params else ""
 
+    def __get_folder_id(self, mailbox_address, folder_name):
+        df_folders = self.get_mailbox_folders(mailbox_address)
+        if folder_name and not df_folders.empty:
+            folder_row = df_folders.loc[df_folders["displayName"] == folder_name]
+            if not folder_row.empty:
+                return folder_row["id"].iloc[0]
+        raise ValueError(f"Folder '{folder_name}' not found for {mailbox_address}")
 
     def __read_emails(
         self,
@@ -155,34 +154,31 @@ class HermesMSGraph:
         less_than_date,
     ):
         
-        if folder:
-            df_folders = self.get_mailbox_folders(mailbox_address)
-            folder_id = None
-            for index, existing_folder in df_folders.iterrows():
-                if existing_folder["displayName"] == folder:
-                    folder_id = df_folders.loc[df_folders["displayName"] == folder, "id"].iloc[0]
-            
-            if not folder_id:
-                raise ValueError(f"Folder '{folder}' not found for user '{mailbox_address}'")
-            folder = f"/mailFolders/{folder_id}"
+        folder_id = self.__get_folder_id(mailbox_address, folder) if folder else None
+        folder_path = f"/mailFolders/{folder_id}" if folder_id else ""
 
 
-        email_filter_url = self.__build_email_query_params(subject, sender, n_of_messages, has_attachments, greater_than_date, less_than_date)
+        email_filter_url = self.__build_email_query_params(
+            subject, sender, n_of_messages, has_attachments, greater_than_date, less_than_date
+        )
         
-        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}{folder}/messages?{email_filter_url}"
+        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}{folder_path}/messages?{email_filter_url}"
         #print(url)
         data_json = self.__get_json_response_by_url(url, get_value=True)
 
-        if data_json:
-            try:
-                with open(messages_json_path, "w+", encoding="utf-8") as file:
-                    json.dump(data_json, file, ensure_ascii=False, indent=4)
-            except Exception as e:
-                raise RuntimeError(
-                    "Unable to save messages to messages.json file"
-                ) from e
-        else:
+        if not data_json:
             print(f"No emails found for {mailbox_address}")
+            return pd.DataFrame()
+        else:
+            if messages_json_path:
+                try:
+                    with open(messages_json_path, "w+", encoding="utf-8") as file:
+                        json.dump(data_json, file, ensure_ascii=False, indent=4)
+                except Exception as e:
+                    raise RuntimeError(
+                        "Unable to save messages to messages.json file"
+                    ) from e
+            return data_json
 
     def __json_to_dataframe(self, json_file_path):
         with open(json_file_path, "r") as file:
@@ -220,38 +216,13 @@ class HermesMSGraph:
         sender="",
         n_of_messages=10,
         has_attachments="",
-        messages_json_path="messages.json",
+        messages_json_path=None,
         greater_than_date=None,
         less_than_date=None,
         format="dataframe",
         data="all", #simple or all
     ):
-        """
-        Public method to retrieve email messages and organize them into a DataFrame with all received attributes.
-
-        Parameters:
-        ----------
-        mailbox_address : str
-            Email address from which to retrieve messages.
-        subject : str, optional
-            Subject to filter by, default is an empty string.
-        folder : str, optional
-            Folder to retrieve messages from, default is an empty string.
-        sender : str, optional
-            Sender's email address to filter by, default is an empty string.
-        n_of_messages : int, optional
-            Number of emails to retrieve, default is 10.
-        subject_filter : str, optional
-            Filter to apply to email subjects, default is an empty string.
-        messages_json_path : str, optional
-            Path to the JSON file where messages will be saved, default is 'messages.json'.
-
-        Returns:
-        -------
-        df_emails : pandas.DataFrame
-            Full DataFrame with email messages and all attributes.
-        """
-        self.__read_emails(
+        json_emails = self.__read_emails(
             mailbox_address=mailbox_address,
             subject=subject,
             folder=folder,
@@ -262,37 +233,27 @@ class HermesMSGraph:
             greater_than_date=greater_than_date,
             less_than_date=less_than_date,
         )
-        df_raw_emails = self.__json_to_dataframe(messages_json_path)
-        #if subject_filter != "":
-        #    df_raw_emails = self.__filter_subject(df_raw_emails, subject_filter)
+        
+        df_emails = pd.json_normalize(json_emails)
        
         if data == "simple":
-            df_emails = self.__filter_columns_df_emails(df_raw_emails)
-        elif data == "all":
-            # print("No emails found using the parameters passed.")
-            df_emails = df_raw_emails
-            
-        if format == "json":
-            json_emails = df_emails.to_json(orient="records")
-            emails = json.loads(json_emails)
-        elif format == "dataframe":
-            emails = df_emails
+            df_emails = self.__filter_columns_df_emails(df_emails)
 
-        return emails
+        return df_emails.to_json(orient="records") if format == "json" else df_emails
 
-    def __read_email_by_id(self, email_id, mailbox_address, messages_json_path="messages.json"):
+    def __read_email_by_id(self, email_id, mailbox_address):
     
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}"
 
         response_json = self.__get_json_response_by_url(url)
-
-        email_json = response_json
+        if not response_json:
+            raise HermesGraphAPIError(f"Failed to retrieve email with ID {email_id}")
         
-        return email_json
+        return response_json
 
 
-    def get_email_by_id(self, email_id, mailbox_address, messages_json_path="messages.json"):
-        email_json = self.__read_email_by_id(email_id, mailbox_address, messages_json_path)
+    def get_email_by_id(self, email_id, mailbox_address):
+        email_json = self.__read_email_by_id(email_id, mailbox_address)
         email_df = pd.DataFrame(email_json)
         return email_df
 
@@ -305,7 +266,7 @@ class HermesMSGraph:
         sender="",
         n_of_messages=10,
         has_attachments="",
-        messages_json_path="messages.json",
+        messages_json_path=None,
         greater_than_date=None,
         less_than_date=None,
     ):
@@ -332,7 +293,7 @@ class HermesMSGraph:
         sender="",
         n_of_messages=10,
         has_attachments="",
-        messages_json_path="messages.json",
+        messages_json_path=None,
         greater_than_date=None,
         less_than_date=None,
     ):
