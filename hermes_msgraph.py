@@ -43,6 +43,22 @@ class HermesMSGraph:
         else:
             print(f"Error sending email: {response.status_code}")
 
+
+    def __get_json_response_by_url(self, url, get_value = True):
+        response = self.http.get(url)
+
+        if response.status_code == 200:
+            json_response = response.json().get("value", [])
+
+            if json_response == None or not get_value:
+                json_response = response.json()
+
+        else:
+            print(f"Error in HTTP request to {url}: {response.status_code} - {response.text}")
+            json_response = None
+
+        return json_response
+
     def list_email_attachments(self, mailbox_address, message_id):
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{message_id}/attachments"
         data_json = self.__get_json_response_by_url(url, get_value=True)
@@ -255,7 +271,6 @@ class HermesMSGraph:
         elif data == "all":
             # print("No emails found using the parameters passed.")
             df_emails = df_raw_emails
-
             
         if format == "json":
             json_emails = df_emails.to_json(orient="records")
@@ -264,21 +279,6 @@ class HermesMSGraph:
             emails = df_emails
 
         return emails
-
-    def __get_json_response_by_url(self, url, get_value = True):
-        response = self.http.get(url)
-
-        if response.status_code == 200:
-            json_response = response.json().get("value", [])
-
-            if json_response == None or not get_value:
-                json_response = response.json()
-
-        else:
-            print(f"Error in HTTP request to {url}: {response.status_code} - {response.text}")
-            json_response = None
-
-        return json_response
 
     def __read_email_by_id(self, email_id, mailbox_address, messages_json_path="messages.json"):
     
@@ -292,25 +292,9 @@ class HermesMSGraph:
 
 
     def get_email_by_id(self, email_id, mailbox_address, messages_json_path="messages.json"):
-        """
-        Public method to retrieve email messages by their ID.
-
-        Parameters:
-        ----------
-        email_id : str
-            ID of the email to retrieve.
-        messages_json_path : str, optional
-            Path to the JSON file where messages will be saved, default is 'messages.json'.
-
-        Returns:
-        -------
-        df_emails : pandas.DataFrame
-            DataFrame with email messages.
-        """
         email_json = self.__read_email_by_id(email_id, mailbox_address, messages_json_path)
         email_df = pd.DataFrame(email_json)
         return email_df
-
 
     #legacy
     def get_df_emails(
