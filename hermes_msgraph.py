@@ -147,17 +147,6 @@ class HermesMSGraph:
         email_filter = []
         email_filter_url = []
 
-        if folder:
-            df_folders = self.get_mailbox_folders(mailbox_address)
-            folder_id = None
-            for index, existing_folder in df_folders.iterrows():
-                if existing_folder["displayName"] == folder:
-                    folder_id = df_folders.loc[df_folders["displayName"] == folder, "id"].iloc[0]
-            
-            if not folder_id:
-                raise ValueError(f"Folder '{folder}' not found for user '{mailbox_address}'")
-            folder = f"/mailFolders/{folder_id}"
-
         if sender:
             email_filter.append(f"sender/emailAddress/address eq '{sender}'")
 
@@ -202,6 +191,19 @@ class HermesMSGraph:
         greater_than_date,
         less_than_date,
     ):
+        
+        if folder:
+            df_folders = self.get_mailbox_folders(mailbox_address)
+            folder_id = None
+            for index, existing_folder in df_folders.iterrows():
+                if existing_folder["displayName"] == folder:
+                    folder_id = df_folders.loc[df_folders["displayName"] == folder, "id"].iloc[0]
+            
+            if not folder_id:
+                raise ValueError(f"Folder '{folder}' not found for user '{mailbox_address}'")
+            folder = f"/mailFolders/{folder_id}"
+
+
         email_filter_url = self.__define_query_utl_by_email_filters(mailbox_address, subject, folder, sender, n_of_messages, has_attachments, messages_json_path, greater_than_date, less_than_date)
         
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}{folder}/messages?{email_filter_url}"
