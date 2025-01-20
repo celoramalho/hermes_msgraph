@@ -66,31 +66,6 @@ class HermesMSGraph:
 
         return subject_filter_url
 
-    def __filter_subject(self, df, subject_filter):
-        if subject_filter:
-            # Case: starts and ends with asterisk -> "contains"
-            if subject_filter.startswith("*") and subject_filter.endswith("*"):
-                subject_filter = subject_filter.strip("*")
-                df = df[
-                    df["subject"].str.contains(subject_filter, case=False, regex=False)
-                ]
-
-            # Case: starts with asterisk -> "ends with"
-            elif subject_filter.startswith("*") and not subject_filter.endswith("*"):
-                subject_filter = subject_filter.lstrip("*")
-                df = df[df["subject"].str.endswith(subject_filter, na=False)]
-
-            # Case: ends with asterisk -> "starts with"
-            elif subject_filter.endswith("*") and not subject_filter.startswith("*"):
-                subject_filter = subject_filter.rstrip("*")
-                df = df[df["subject"].str.startswith(subject_filter, na=False)]
-
-            # Case: exact match
-            else:
-                df = df[df["subject"] == subject_filter]
-
-        return df
-
     def list_email_attachments(self, mailbox_address, message_id):
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{message_id}/attachments"
         data_json = self.__get_json_response_by_url(url, get_value=True)
@@ -179,7 +154,7 @@ class HermesMSGraph:
 
         return email_filter_url
 
-    def __read_email(
+    def __read_emails(
         self,
         mailbox_address,
         subject,
@@ -288,7 +263,7 @@ class HermesMSGraph:
         df_emails : pandas.DataFrame
             Full DataFrame with email messages and all attributes.
         """
-        self.__read_email(
+        self.__read_emails(
             mailbox_address=mailbox_address,
             subject=subject,
             folder=folder,
