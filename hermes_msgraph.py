@@ -7,6 +7,14 @@ import pandas as pd
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from classes.hermeshttp import HermesHttp
 
+class HermesGraphAPIError(Exception):
+    """Custom exception for errors related to HermesGraphAPI."""
+    def __init__(self, message, error_code=None):
+        super().__init__(message)
+        self.error_code = error_code
+
+    pass
+
 class HermesMSGraph:
     """
     Class to interact with the Microsoft Graph API for sending and reading emails.
