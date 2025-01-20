@@ -43,29 +43,6 @@ class HermesMSGraph:
         else:
             print(f"Error sending email: {response.status_code}")
 
-    def __ulr_filter_subject(self, subject):
-        if subject:
-            # Case: starts and ends with asterisk -> "contains"
-            if subject.startswith("*") and subject.endswith("*"):
-                subject = subject.strip("*")
-                subject_filter_url = f"contains(subject, '{subject}')"
-
-            # Case: starts with asterisk -> "ends with"
-            elif subject.startswith("*") and not subject.endswith("*"):
-                subject = subject.strip("*")
-                subject_filter_url = f"startswith(subject, '{subject}')"
-
-            # Case: ends with asterisk -> "starts with"
-            elif subject.endswith("*") and not subject.startswith("*"):
-                subject = subject.strip("*")
-                subject_filter_url = f"endswith(subject, '{subject}')"
-
-            # Case: exact match
-            else:
-                subject_filter_url = f"subject eq '{subject}'"
-
-        return subject_filter_url
-
     def list_email_attachments(self, mailbox_address, message_id):
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{message_id}/attachments"
         data_json = self.__get_json_response_by_url(url, get_value=True)
