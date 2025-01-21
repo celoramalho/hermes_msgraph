@@ -344,11 +344,12 @@ class HermesMSGraph:
         payload = {
             "destinationId": folder_id
         }
+        
         print(url)
         print(payload)
         
         response = self.http.post(url, payload=payload)
-        
+        print(response.status_code)
         if response.status_code == 403:
             raise HermesMSGraphError(f"Error moving email to folder: {response.status_code} - {response.text}")
 
@@ -412,3 +413,6 @@ class HermesMSGraph:
             data="all",
         )
         return emails
+    
+    def list_msgraph_permissions(self):
+        self.http.list_msgraph_permisions()

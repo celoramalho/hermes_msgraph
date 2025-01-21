@@ -1,5 +1,6 @@
 import json
 import requests
+import jwt
 
 class HermesHttp:
     def __init__(self, client_id, client_secret, tenant_id):
@@ -75,3 +76,10 @@ class HermesHttp:
     
     def get(self, url):
         return self.__get_http(url)
+    
+    def list_msgraph_permisions(self):
+        decoded_token = jwt.decode(self.access_token, options={"verify_signature": False})
+        if "scp" in decoded_token:
+            print("Delegated Permissions:", decoded_token["scp"])
+        if "roles" in decoded_token:
+            print("Application Permissions:", decoded_token["roles"])
