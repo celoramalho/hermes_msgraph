@@ -1,5 +1,6 @@
 import json
 import os
+from urllib.parse import quote, unquote
 import sys
 import base64
 import pandas as pd
@@ -141,6 +142,16 @@ class HermesMSGraph:
 
         return "&".join(query_params) if query_params else ""
 
+    
+    def __validate_folder_id(self, mailbox_address, folder_id):
+        df_folders = self.get_mailbox_folders(mailbox_address)
+        
+        if not df_folders.empty:
+            folder_row = df_folders.loc[df_folders["id"] == folder_id]
+            if not folder_row.empty:
+                return True
+        return False
+    
     def __get_folder_id(self, mailbox_address, folder_name):
         df_folders = self.get_mailbox_folders(mailbox_address)
         
@@ -149,7 +160,44 @@ class HermesMSGraph:
             if not folder_row.empty:
                 return folder_row["id"].iloc[0]
         raise HermesMSGraphError(f"Folder '{folder_name}' not found for {mailbox_address}")
+    
+    def __get_folder_name_by_id(self, mailbox_address, folder_id):
+        df_folders = self.get_mailbox_folders(mailbox_address)
+        
+        if not df_folders.empty:
+            folder_row = df_folders.loc[df_folders["id"] == folder_id]
+            if not folder_row.empty:
+                return folder_row["displayName"].iloc[0]
+        raise HermesMSGraphError(f"Folder with ID {folder_id} not found for {mailbox_address}")
+    
+    
+    def __verify_if_str_is_encoded(self, string):
+        """
+        Verifies if a string is already URL-encoded.
 
+        Args:
+            string (str): The string to verify.
+
+        Returns:
+            bool: True if the string is already encoded, False otherwise.
+        """
+        return string == quote(unquote(string))
+
+    def __encode_str_to_url(self, string):
+        """
+        Encodes a string to be safely used in a URL.
+
+        Args:
+            string (str): The string to encode.
+
+        Returns:
+            str: The URL-encoded string.
+        """
+        if self.__verify_if_str_is_encoded(string):
+            return string
+        
+        return quote(string)
+    
     def __read_emails(
         self,
         mailbox_address,
@@ -268,6 +316,8 @@ class HermesMSGraph:
 
 
     def __read_email_by_id(self, email_id, mailbox_address):
+        
+        email_id = self.__encode_str_to_url(email_id)
     
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}"
 
@@ -278,18 +328,27 @@ class HermesMSGraph:
         return response_json
     
     def move_email_to_folder(self, email_id, mailbox_address, folder_name=None, folder_id=None):
-        if not folder_id:
-            if not folder_name:
-                raise HermesMSGraphError("Either folder_id or folder_name must be provided")
-            folder_id = self.__get_folder_id(mailbox_address, folder_name)
+        email_id = self.__encode_str_to_url(email_id)
         
+        if folder_name:
+            folder_id = self.__encode_str_to_url(self.__get_folder_id(mailbox_address, folder_name))
+            
+        elif folder_id:
+            folder_id = self.__encode_str_to_url(folder_id)
+            folder_name = self.__get_folder_name_by_id(mailbox_address, folder_id)
+        
+        else:
+            raise HermesMSGraphError("Either folder_id or folder_name must be provided")
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}/move"
         
         payload = {
             "destinationId": folder_id
         }
+        print(url)
+        print(payload)
         
         response = self.http.post(url, payload=payload)
+        
         if response.status_code == 403:
             raise HermesMSGraphError(f"Error moving email to folder: {response.status_code} - {response.text}")
 
