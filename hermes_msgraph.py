@@ -7,7 +7,7 @@ import pandas as pd
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from classes.hermeshttp import HermesHttp
 
-class HermesGraphAPIError(Exception):
+class HermesMSGraphError(Exception):
     """Custom exception for errors related to HermesGraphAPI."""
     def __init__(self, message, error_code=None):
         super().__init__(message)
@@ -143,11 +143,12 @@ class HermesMSGraph:
 
     def __get_folder_id(self, mailbox_address, folder_name):
         df_folders = self.get_mailbox_folders(mailbox_address)
+        
         if folder_name and not df_folders.empty:
             folder_row = df_folders.loc[df_folders["displayName"] == folder_name]
             if not folder_row.empty:
                 return folder_row["id"].iloc[0]
-        raise ValueError(f"Folder '{folder_name}' not found for {mailbox_address}")
+        raise HermesMSGraphError(f"Folder '{folder_name}' not found for {mailbox_address}")
 
     def __read_emails(
         self,
@@ -258,14 +259,28 @@ class HermesMSGraph:
 
         response_json = self.__get_json_response_by_url(url, get_value=False)
         if not response_json:
-            raise HermesGraphAPIError(f"Failed to retrieve email with ID {email_id}")
+            raise HermesMSGraphError(f"Failed to retrieve email with ID {email_id}")
         
         return response_json
-
+    
+    def move_email_to_folder(self, email_id, mailbox_address, folder_name=None, folder_id=None):
+        if not folder_id:
+            if not folder_name:
+                raise HermesMSGraphError("Either folder_id or folder_name must be provided")
+            folder_id = self.__get_folder_id(mailbox_address, folder_name)
+        
+        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}/move"
+        
+        payload = {
+            "destinationId": folder_id
+        }
+        
+        self.http.post(url, payload=payload)
 
     def get_email_by_id(self, email_id, mailbox_address):
         email_json = self.__read_email_by_id(email_id, mailbox_address)
-        email_df = pd.DataFrame(email_json)
+        #print(email_json)
+        email_df = pd.json_normalize(email_json)
         return email_df
 
     #legacy
