@@ -45,10 +45,10 @@ class HermesMSGraph:
 
         response = self.http.post(url, payload=payload)
 
-        if response.status_code == 200:
+        if response.status_code == 200 or response.status_code == 202:
             print("Email sent successfully!")
         else:
-            print(f"Error sending email: {response.status_code}")
+            raise HermesMSGraphError(f"Error sending email: {response.status_code} - {response.text}")
 
 
     def __get_json_response_by_url(self, url, get_value=True):
@@ -62,7 +62,7 @@ class HermesMSGraph:
                 print(f"Invalid JSON response from {url}")
                 return None
         else:
-            print(f"HTTP Error: {response.status_code} - {response.text}")
+            #print(f"HTTP Error: {response.status_code} - {response.text}")
             return None
 
 
@@ -99,7 +99,7 @@ class HermesMSGraph:
 
                 url = data.get("@odata.nextLink")
             else:
-                print(f"No folders found for {mailbox_address}")
+                raise HermesMSGraphError(f"Failed to retrieve folders for {mailbox_address}")
 
         return all_folders
 
@@ -176,7 +176,7 @@ class HermesMSGraph:
         data_json = self.__get_json_response_by_url(url, get_value=True)
 
         if not data_json:
-            print(f"No emails found for {mailbox_address}")
+            #print(f"No emails found for {mailbox_address}")
             return None
         else:
             if messages_json_path:
@@ -242,16 +242,30 @@ class HermesMSGraph:
             greater_than_date=greater_than_date,
             less_than_date=less_than_date,
         )
+        
+        valid_formats = ["dataframe", "dict", "list", "json"]
+        
+        if format not in valid_formats:
+            raise HermesMSGraphError("Invalid format. Must be 'dataframe' or 'list'")
 
-        if not json_emails:
-            return pd.DataFrame()
+        
+        if format == "dataframe":
+            if not json_emails:
+                return pd.DataFrame() #Empty dataframe
+            else:
+                df_emails = pd.json_normalize(json_emails)
+                if data == "simple":
+                    df_emails = self.__filter_columns_df_emails(df_emails)
+                
+                return df_emails
+                
+        if format == "dict" or format=="json" or format=="list":
+            if not json_emails:
+                return None
+            else:
+                list_of_dict_emails = json_emails
+                return list_of_dict_emails
 
-        df_emails = pd.json_normalize(json_emails)
-       
-        if data == "simple":
-            df_emails = self.__filter_columns_df_emails(df_emails)
-
-        return df_emails.to_json(orient="records") if format == "json" else df_emails
 
     def __read_email_by_id(self, email_id, mailbox_address):
     
@@ -275,7 +289,9 @@ class HermesMSGraph:
             "destinationId": folder_id
         }
         
-        self.http.post(url, payload=payload)
+        response = self.http.post(url, payload=payload)
+        if response.status_code == 403:
+            raise HermesMSGraphError(f"Error moving email to folder: {response.status_code} - {response.text}")
 
     def get_email_by_id(self, email_id, mailbox_address):
         email_json = self.__read_email_by_id(email_id, mailbox_address)

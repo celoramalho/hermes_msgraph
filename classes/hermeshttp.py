@@ -64,6 +64,7 @@ class HermesHttp:
         response = requests.post(url, headers=headers, data=data)
 
         response_status_code = self.__verify_response_status_code(response)
+        
         if response_status_code == 401:
             response = self.__get_http(url)
 
