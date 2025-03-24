@@ -8,20 +8,22 @@ import pandas as pd
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from classes.hermeshttp import HermesHttp
 
-class HermesMSGraphError(Exception):
-    """Custom exception for errors related to HermesGraphAPI."""
-    def __init__(self, message, error_code=None):
-        super().__init__(message)
-        self.error_code = error_code
-
-    pass
-
 class HermesMSGraph:
     """
     Class to interact with the Microsoft Graph API for sending and reading emails.
 
     The class contains methods to obtain an access token, send emails, read email messages, organize data into a DataFrame, and save it to a JSON file.
     """
+
+
+    class HermesMSGraphError(Exception):
+        """Custom exception for errors related to HermesGraphAPI."""
+        def __init__(self, message, error_code=None):
+            super().__init__(message)
+            self.error_code = error_code
+
+        pass
+
 
     def __init__(self, client_id, client_secret, tenant_id):
         self.client_id = client_id
@@ -49,7 +51,7 @@ class HermesMSGraph:
         if response.status_code == 200 or response.status_code == 202:
             print("Email sent successfully!")
         else:
-            raise HermesMSGraphError(f"Error sending email: {response.status_code} - {response.text}")
+            raise self.HermesMSGraphError(f"Error sending email: {response.status_code} - {response.text}")
 
 
     def __get_json_response_by_url(self, url, get_value=True):
@@ -63,8 +65,7 @@ class HermesMSGraph:
                 print(f"Invalid JSON response from {url}")
                 return None
         else:
-            #print(f"HTTP Error: {response.status_code} - {response.text}")
-            return None
+            raise self.HermesMSGraphError(f"Error fetching data from {url}: {response.status_code} - {response.text}")
 
 
     def list_email_attachments(self, mailbox_address, message_id):
@@ -100,7 +101,7 @@ class HermesMSGraph:
 
                 url = data.get("@odata.nextLink")
             else:
-                raise HermesMSGraphError(f"Failed to retrieve folders for {mailbox_address}")
+                raise self.HermesMSGraphError(f"Failed to retrieve folders for {mailbox_address}")
 
         return all_folders
 
@@ -159,7 +160,7 @@ class HermesMSGraph:
             folder_row = df_folders.loc[df_folders["displayName"] == folder_name]
             if not folder_row.empty:
                 return folder_row["id"].iloc[0]
-        raise HermesMSGraphError(f"Folder '{folder_name}' not found for {mailbox_address}")
+        raise self.HermesMSGraphError(f"Folder '{folder_name}' not found for {mailbox_address}")
     
     def __get_folder_name_by_id(self, mailbox_address, folder_id):
         df_folders = self.get_mailbox_folders(mailbox_address)
@@ -168,7 +169,7 @@ class HermesMSGraph:
             folder_row = df_folders.loc[df_folders["id"] == folder_id]
             if not folder_row.empty:
                 return folder_row["displayName"].iloc[0]
-        raise HermesMSGraphError(f"Folder with ID {folder_id} not found for {mailbox_address}")
+        raise self.HermesMSGraphError(f"Folder with ID {folder_id} not found for {mailbox_address}")
     
     
     def __verify_if_str_is_encoded(self, string):
@@ -198,6 +199,43 @@ class HermesMSGraph:
         
         return quote(string)
     
+    def __url_filter_subject(self, subject):
+        """
+        Builds a filter for the subject in Microsoft Graph API query parameters.
+
+        Args:
+            subject (str): The subject string to filter, supports wildcards '*' at the beginning or end.
+
+        Returns:
+            str: The formatted filter string for the subject or an empty string if subject is None or empty.
+        """
+        if subject:
+            # Case: starts and ends with asterisk -> "contains"
+            if subject.startswith("*") and subject.endswith("*"):
+                subject = subject.strip("*")
+                subject_filter_url = f"contains(subject, '{subject}')"
+
+            # Case: starts with asterisk -> "ends with"
+            elif subject.startswith("*"):
+                subject = subject.strip("*")
+                subject_filter_url = f"endswith(subject, '{subject}')"
+
+            # Case: ends with asterisk -> "starts with"
+            elif subject.endswith("*"):
+                raise self.HermesMSGraphError("Microsoft Graph API does not support endswith filter for subject")
+                subject = subject.strip("*")
+                subject_filter_url = f"startswith(subject, '{subject}')"
+
+            # Case: exact match
+            else:
+                subject_filter_url = f"subject eq '{subject}'"
+
+            return subject_filter_url
+
+        # Default return for invalid or empty subject
+        return ""
+
+    
     def __read_emails(
         self,
         mailbox_address,
@@ -211,31 +249,45 @@ class HermesMSGraph:
         less_than_date,
     ):
         
-        folder_id = self.__get_folder_id(mailbox_address, folder) if folder else None
-        folder_path = f"/mailFolders/{folder_id}" if folder_id else ""
+        self.__validate_parameters(
+            mailbox_address=mailbox_address,
+            subject=subject,
+            folder=folder,
+            sender=sender,
+            n_of_messages=n_of_messages,
+            has_attachments=has_attachments,
+            messages_json_path=messages_json_path,
+            greater_than_date=greater_than_date,
+            less_than_date=less_than_date,
+        )
 
 
-        email_filter_url = self.__build_email_query_params(
+        if folder:
+            folder_id = self.__get_folder_id(mailbox_address, folder)
+            folder_path = f"/mailFolders/{folder_id}" 
+        else:
+            folder_path = ""
+
+
+        filter_suffix = self.__build_email_query_params(
             subject, sender, n_of_messages, has_attachments, greater_than_date, less_than_date
         )
         
-        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}{folder_path}/messages?{email_filter_url}"
-        #print(url)
-        data_json = self.__get_json_response_by_url(url, get_value=True)
+        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}{folder_path}/messages?{filter_suffix}"
+        
 
-        if not data_json:
-            #print(f"No emails found for {mailbox_address}")
-            return None
-        else:
-            if messages_json_path:
-                try:
-                    with open(messages_json_path, "w+", encoding="utf-8") as file:
-                        json.dump(data_json, file, ensure_ascii=False, indent=4)
-                except Exception as e:
-                    raise RuntimeError(
-                        "Unable to save messages to messages.json file"
-                    ) from e
-            return data_json
+        data_json = self.__get_json_response_by_url(url, get_value=True)
+        
+        if messages_json_path:
+            try:
+                with open(messages_json_path, "w+", encoding="utf-8") as file:
+                    json.dump(data_json, file, ensure_ascii=False, indent=4)
+            except Exception as e:
+                raise self.HermesMSGraphError(
+                    "Unable to save messages to messages.json file"
+                ) from e
+            
+        return data_json
 
     def __json_to_dataframe(self, json_file_path):
         with open(json_file_path, "r") as file:
@@ -263,22 +315,28 @@ class HermesMSGraph:
 
     # Usage example:
     # api = MSGraphAPI()
-    # df_emails = api.get_df_emails("anakin.skywalker@github.com")
+    # df_emails = api.get_df_emails("anakin.skywalker@github.com")      
 
     def get_emails(
         self,
         mailbox_address,
-        subject="",
-        folder="",
-        sender="",
+        subject=None,
+        folder=None,
+        sender=None,
         n_of_messages=10,
-        has_attachments="",
+        has_attachments= "",
         messages_json_path=None,
         greater_than_date=None,
         less_than_date=None,
-        format="dataframe",
+        format=list,
         data="all", #simple or all
     ):
+        
+        valid_formats = [list, pd.DataFrame]
+        
+        if format not in valid_formats:
+            raise self.HermesMSGraphError("Invalid format. Must be 'dataframe' or 'list'")
+
         json_emails = self.__read_emails(
             mailbox_address=mailbox_address,
             subject=subject,
@@ -290,40 +348,19 @@ class HermesMSGraph:
             greater_than_date=greater_than_date,
             less_than_date=less_than_date,
         )
-        
-        valid_formats = ["dataframe", "dict", "list", "json"]
-        
-        if format not in valid_formats:
-            raise HermesMSGraphError("Invalid format. Must be 'dataframe' or 'list'")
 
-        
-        if format == "dataframe":
-            if not json_emails:
-                return pd.DataFrame() #Empty dataframe
-            else:
-                df_emails = pd.json_normalize(json_emails)
-                if data == "simple":
-                    df_emails = self.__filter_columns_df_emails(df_emails)
-                
-                return df_emails
-                
-        if format == "dict" or format=="json" or format=="list":
-            if not json_emails:
-                return None
-            else:
-                list_of_dict_emails = json_emails
-                return list_of_dict_emails
+        return  pd.json_normalize(json_emails) if format == pd.DataFrame else json_emails
 
 
     def __read_email_by_id(self, email_id, mailbox_address):
         
-        email_id = self.__encode_str_to_url(email_id)
+        #email_id = self.__encode_str_to_url(email_id)
     
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}"
 
         response_json = self.__get_json_response_by_url(url, get_value=False)
         if not response_json:
-            raise HermesMSGraphError(f"Failed to retrieve email with ID {email_id}")
+            raise self.HermesMSGraphError(f"Failed to retrieve email with ID {email_id}")
         
         return response_json
     
@@ -331,88 +368,183 @@ class HermesMSGraph:
         email_id = self.__encode_str_to_url(email_id)
         
         if folder_name:
-            folder_id = self.__encode_str_to_url(self.__get_folder_id(mailbox_address, folder_name))
+            folder_id = self.__get_folder_id(mailbox_address, folder_name)
+            folder_id_encoded = self.__encode_str_to_url(folder_id)
             
         elif folder_id:
-            folder_id = self.__encode_str_to_url(folder_id)
+            folder_id_encoded = self.__encode_str_to_url(folder_id)
             folder_name = self.__get_folder_name_by_id(mailbox_address, folder_id)
         
         else:
-            raise HermesMSGraphError("Either folder_id or folder_name must be provided")
+            raise self.HermesMSGraphError("Either folder_id or folder_name must be provided")
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}/move"
         
         payload = {
             "destinationId": folder_id
         }
         
-        print(url)
-        print(payload)
+        #print(url)
+        #print(payload)
         
         response = self.http.post(url, payload=payload)
-        print(response.status_code)
+        #print(response.status_code)
         if response.status_code == 403:
-            raise HermesMSGraphError(f"Error moving email to folder: {response.status_code} - {response.text}")
+            raise self.HermesMSGraphError(f"Error moving email to folder: {response.status_code} - {response.text}")
 
     def get_email_by_id(self, email_id, mailbox_address):
         email_json = self.__read_email_by_id(email_id, mailbox_address)
         #print(email_json)
         email_df = pd.json_normalize(email_json)
-        return email_df
+        return email_json
 
-    #legacy
-    def get_df_emails(
-        self,
-        mailbox_address,
-        subject="",
-        folder="",
-        sender="",
-        n_of_messages=10,
-        has_attachments="",
-        messages_json_path=None,
-        greater_than_date=None,
-        less_than_date=None,
-    ):
-        emails = self.get_emails(
-            mailbox_address=mailbox_address,
-            subject=subject,
-            folder=folder,
-            sender=sender,
-            n_of_messages=n_of_messages,
-            has_attachments=has_attachments,
-            messages_json_path=messages_json_path,
-            greater_than_date=greater_than_date,
-            less_than_date=less_than_date,
-            format="dataframe",
-            data="simple",
-        )
-        return emails
+    def foward_email_by_id(self, email_id, mailbox_address, to_address, comment=None):
+        """
+        Forwards an email by its ID to a specified recipient.
 
-    def get_raw_df_emails(
-        self,
-        mailbox_address,
-        subject="",
-        folder="",
-        sender="",
-        n_of_messages=10,
-        has_attachments="",
-        messages_json_path=None,
-        greater_than_date=None,
-        less_than_date=None,
-    ):
-        emails = self.get_emails(
-            mailbox_address=mailbox_address,
-            subject=subject,
-            folder=folder,
-            sender=sender,
-            n_of_messages=n_of_messages,
-            has_attachments=has_attachments,
-            messages_json_path=messages_json_path,
-            greater_than_date=greater_than_date,
-            less_than_date=less_than_date,
-            format="dataframe",
-            data="all",
-        )
-        return emails
+        Args:
+            email_id (str): The ID of the email to forward.
+            mailbox_address (str): The email address of the mailbox.
+            to_address (str): The recipient's email address.
+            comment (str, optional): A comment to include with the forwarded email. Defaults to None.
+        """
+        url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}/messages/{email_id}/forward"
+
+        payload = {
+            "toRecipients": [
+                {
+                    "emailAddress": {
+                        "address": to_address
+                    }
+                }
+            ]
+        }
+
+        if comment:
+            payload["comment"] = comment
+
+    # Send the POST request
+        self.http.post(url, payload=payload)
+
     
     def list_msgraph_permissions(self):
         self.http.list_msgraph_permisions()
+
+    def get_user_id_by_email(self, email_address):
+        url = f"https://graph.microsoft.com/v1.0/users/{email_address}"
+        
+        response = self.http.get(url)
+        user_data = response.json()
+
+        if response.status_code == 200:
+            return user_data.get("id")
+        else:
+            print(f"Error fetching user ID: {response.status_code} - {response.text}")
+            return None
+        
+    def list_plans_by_group_id(self, group_id, data="all"):
+        url = f"https://graph.microsoft.com/v1.0/groups/{group_id}/planner/plans"
+        response = self.http.get(url)
+
+        plans = response.json().get("value", [])
+
+        planner_data = []
+        for plan in plans:
+            planner_data.append({
+                "id": plan["id"],
+                "title": plan["title"],
+                "owner": plan["owner"]
+            })
+
+        return plans if data == "all" else planner_data
+    
+    def list_visible_plans_by_user_id(self, user_id):
+        url = f"https://graph.microsoft.com/v1.0/users/{user_id}/planner/plans"
+        response = self.http.get(url)
+
+        print(response.json())
+
+        plans = response.json().get("value", [])
+
+        planner_data = []
+        for plan in plans:
+            planner_data.append({
+                "id": plan["id"],
+                "title": plan["title"],
+                "owner": plan["owner"]["user"]["displayName"]
+            })
+
+        return planner_data
+    
+
+    def list_tasks_by_user_id(self, user_id):
+        url = f"https://graph.microsoft.com/v1.0/users/{user_id}/planner/tasks"
+        response = self.http.get(url)
+
+        print(response.json())
+
+        tasks = response.json().get("value", [])
+
+        return tasks
+
+
+    def list_tasks_by_plan_id(self, planner_id):
+        url = f"https://graph.microsoft.com/v1.0/planner/plans/{planner_id}/tasks"
+        response = self.http.get(url)
+        if response.status_code != 200:
+            raise self.HermesMSGraphError(f"Error fetching tasks: {response.status_code} - {response.text}")
+        
+        tasks = response.json().get("value", [])
+        detailed_tasks = []
+
+        for task in tasks:
+            task_id = task["id"]
+            details_url = f"https://graph.microsoft.com/v1.0/planner/tasks/{task_id}/details"
+            details_response = self.http.get(details_url)
+            if details_response.status_code == 200:
+                task_details = details_response.json()
+                task["body"] = task_details.get("description", "N/A")  # Add the task body/description
+            else:
+                task["body"] = "N/A"  # Handle cases where details cannot be fetched
+            detailed_tasks.append(task)
+
+        return detailed_tasks
+
+
+    def __validate_parameters(
+        self,
+        mailbox_address,
+        subject=None,
+        folder=None,
+        sender=None,
+        n_of_messages=None,
+        has_attachments= "",
+        messages_json_path=None,
+        greater_than_date=None,
+        less_than_date=None,
+    ):
+        if not isinstance(mailbox_address, str) or not mailbox_address:
+            raise self.HermesMSGraphError("Invalid mailbox_address. Must be a non-empty string.")
+        
+        if subject is not None and not isinstance(subject, str):
+            raise self.HermesMSGraphError("Invalid subject. Must be a string.")
+        
+        if folder is not None and not isinstance(folder, str):
+            raise self.HermesMSGraphError("Invalid folder. Must be a string.")
+        
+        if sender is not None and not isinstance(sender, str):
+            raise self.HermesMSGraphError("Invalid sender. Must be a string.")
+        
+        if n_of_messages != "all" and (not isinstance(n_of_messages, int) or n_of_messages <= 0):
+            raise self.HermesMSGraphError("Invalid n_of_messages. Must be a positive integer or 'all'.")
+        
+        if has_attachments not in ["", True, False]:
+            raise self.HermesMSGraphError("Invalid has_attachments. Must be True, False, or an empty string.")
+        
+        if messages_json_path is not None and not isinstance(messages_json_path, str):
+            raise self.HermesMSGraphError("Invalid messages_json_path. Must be a string.")
+        
+        if greater_than_date is not None and not isinstance(greater_than_date, str):
+            raise self.HermesMSGraphError("Invalid greater_than_date. Must be a string in ISO format.")
+        
+        if less_than_date is not None and not isinstance(less_than_date, str):
+            raise self.HermesMSGraphError("Invalid less_than_date. Must be a string in ISO format.")
