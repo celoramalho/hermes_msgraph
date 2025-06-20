@@ -2,3 +2,5 @@ api_text.yml
 **/__pycache__/*
 __pycache__/
 messages.json
+test/
+test/*
