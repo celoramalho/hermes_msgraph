@@ -159,7 +159,6 @@ class EmailService:
         )
         
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}{folder_path}/messages?{filter_suffix}"
-        print(f"Fetching emails from: {url}")
 
         data_json = self.http.get_json_response_by_url(url, get_value=True)
         
