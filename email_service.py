@@ -87,6 +87,7 @@ class EmailService:
             messages_json_path=None,
             greater_than_date=None,
             less_than_date=None,
+            internet_message_id=None,
             format=list,
             data="all", #simple or all
         ):
@@ -106,6 +107,7 @@ class EmailService:
                 messages_json_path=messages_json_path,
                 greater_than_date=greater_than_date,
                 less_than_date=less_than_date,
+                internet_message_id=internet_message_id,
             )
 
             return  pd.json_normalize(json_emails) if format == pd.DataFrame else json_emails
@@ -128,6 +130,7 @@ class EmailService:
         messages_json_path,
         greater_than_date,
         less_than_date,
+        internet_message_id
     ):
         
         self.__validate_parameters(
@@ -140,6 +143,7 @@ class EmailService:
             messages_json_path=messages_json_path,
             greater_than_date=greater_than_date,
             less_than_date=less_than_date,
+            internet_message_id=internet_message_id
         )
 
 
@@ -151,11 +155,11 @@ class EmailService:
 
 
         filter_suffix = self.__build_email_query_params(
-            subject, sender, n_of_messages, has_attachments, greater_than_date, less_than_date
+            subject, sender, n_of_messages, has_attachments, greater_than_date, less_than_date, internet_message_id
         )
         
         url = f"https://graph.microsoft.com/v1.0/users/{mailbox_address}{folder_path}/messages?{filter_suffix}"
-        
+        print(f"Fetching emails from: {url}")
 
         data_json = self.http.get_json_response_by_url(url, get_value=True)
         
@@ -178,6 +182,7 @@ class EmailService:
         has_attachments=None,
         greater_than_date=None,
         less_than_date=None,
+        internet_message_id=None
     ):
         filters = []
         query_params = []
@@ -187,10 +192,12 @@ class EmailService:
                 filters.append(condition)
 
         add_filter(f"sender/emailAddress/address eq '{sender}'" if sender else None)
+        add_filter(f"internetMessageId eq \'{str(internet_message_id)}\'" if internet_message_id else None)
         add_filter(self.__url_filter_subject(subject) if subject else None)
         add_filter(f"receivedDateTime gt {greater_than_date}" if greater_than_date else None)
         add_filter(f"receivedDateTime lt {less_than_date}" if less_than_date else None)
         add_filter(f"hasAttachments eq {str(has_attachments).lower()}" if has_attachments else None)
+
 
         if filters:
             query_params.append(f"$filter={' and '.join(filters)}")
@@ -273,6 +280,7 @@ class EmailService:
         messages_json_path=None,
         greater_than_date=None,
         less_than_date=None,
+        internet_message_id=None
     ):
         if not isinstance(mailbox_address, str) or not mailbox_address:
             raise self.HermesMSGraphError("Invalid mailbox_address. Must be a non-empty string.")
