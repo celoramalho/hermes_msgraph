@@ -2,6 +2,8 @@ import pandas as pd
 from http_client import HttpClient
 from exceptions import HermesMSGraphError
 from mailbox_folder_service import MailboxFolderService
+import os
+import base64
 
 
 class EmailService:
@@ -10,25 +12,86 @@ class EmailService:
         self.HermesMSGraphError = HermesMSGraphError
         self.MailboxFolderService = MailboxFolderService(http_client)
 
-    def send_email(self, sender_mail, subject, body, to_address, cc_address=None):
+    def send_email(self, sender_mail, subject, body, to_address, cc_address=None, attachments=None, delay=0, body_type="Text"):
+        """
+        Sends an email with optional attachments.
+        
+        Args:
+            sender_mail (str): The email address of the sender.
+            subject (str): The subject of the email.
+            body (str): The body content of the email.
+            to_address (str): The recipient's email address.
+            cc_address (str or list, optional): The CC recipient's email address. Defaults to None.
+            attachments (str or list, optional): List of file paths to be attached. Defaults to None.
+        """
+
+        if attachments and isinstance(attachments, str):
+            attachments = [attachments]
+
+        if cc_address and isinstance(cc_address, str):
+            cc_address = [cc_address]
+
+        if isinstance(to_address, str):
+            to_address = to_address.split(";")
+
         url = f"https://graph.microsoft.com/v1.0/users/{sender_mail}/sendMail"
 
         payload = {
             "message": {
                 "subject": subject,
-                "body": {"contentType": "Text", "content": body},
-                "toRecipients": [{"emailAddress": {"address": to_address}}],
-                "ccRecipients": (
-                    [{"emailAddress": {"address": cc_address}}] if cc_address else []
-                ),
+                "body": {"contentType": body_type, "content": body},
+                "toRecipients": [{"emailAddress": {"address": email}} for email in to_address],
             },
             "saveToSentItems": "true",
         }
+        # Add CC recipients if provided
+        if cc_address:
+            payload["message"]["ccRecipients"] = [
+                {"emailAddress": {"address": email}} for email in cc_address
+            ]
+
+        # Add attachments if provided
+        if attachments:
+            payload["message"]["attachments"] = []
+            for file_path in attachments:
+                try:
+                    # Check if file exists
+                    if not os.path.exists(file_path):
+                        raise self.HermesMSGraphError(f"File to attachment not found: {file_path}")
+                    
+                    # Get file name from path
+                    file_name = os.path.basename(file_path)
+                    
+                    # Read and encode file content
+                    with open(file_path, 'rb') as file:
+                        content_bytes = base64.b64encode(file.read()).decode('utf-8')
+                    
+                    payload["message"]["attachments"].append({
+                        "@odata.type": "#microsoft.graph.fileAttachment",
+                        "name": file_name,
+                        "contentBytes": content_bytes
+                    })
+                except Exception as e:
+                    raise self.HermesMSGraphError(f"Error processing attachment {file_path}: {str(e)}")
+
+
+        if delay > 0:
+            now = pd.Timestamp.now(tz='UTC')
+            delayed_time = now + pd.Timedelta(seconds=delay)
+            payload["message"]["singleValueExtendedProperties"] = [
+                {
+                    "id": "SystemTime 0x3FEF",
+                    "value": delayed_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                }
+            ]
 
         response = self.http.post(url, payload=payload)
 
         if response.status_code == 200 or response.status_code == 202:
             print("Email sent successfully!")
+            return response
+        elif response.status_code == 429:
+            return response
         else:
             raise self.HermesMSGraphError(f"Error sending email: {response.status_code} - {response.text}")
         
