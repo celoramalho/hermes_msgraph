@@ -82,6 +82,7 @@ class UsersService:
 
 
     def __get_license_details(self, users: list) -> list:
+        
         users_all_info = []
         for user in tqdm(users, desc="Fetching user details", unit="user"):
             user_id = user['id']
