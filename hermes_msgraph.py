@@ -9,7 +9,7 @@ from mailbox_folder_service import MailboxFolderService
 from planner_service import PlannerService
 from users_service import UsersService
 from exceptions import HermesMSGraphError       
-
+from typing import Literal
 
 class HermesMSGraph:
     """
@@ -30,8 +30,8 @@ class HermesMSGraph:
         self.http = HttpClient(client_id, client_secret, tenant_id)
 
         # EmailService methods
-    def send_email(self, sender_mail, subject, body, to_address, cc_address=None):
-        return self.email_service.send_email(sender_mail, subject, body, to_address, cc_address)
+    def send_email(self, sender_mail, subject, body, to_address, cc_address=None, attachments=None, delay=0, body_type: Literal["Text", "html"]="Text"):
+        return self.email_service.send_email(sender_mail, subject, body, to_address, cc_address, attachments=attachments, delay=delay, body_type=body_type)
 
     def get_emails(self, mailbox_address, **kwargs):
         return self.email_service.get_emails(mailbox_address, **kwargs)
