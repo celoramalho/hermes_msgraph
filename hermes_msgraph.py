@@ -84,6 +84,9 @@ class HermesMSGraph:
     def get_tenant_licenses(self):
         return self.users_service.get_tenant_licenses()
     
+    def list_sharepoint_sites(self):
+        return self.email_service.list_sharepoint_sites()
+    
     def add_user_to_shared_mailbox(self, user_address, shared_mailbox_address):
         return self.users_service.add_user_to_shared_mailbox(user_address, shared_mailbox_address)
     
