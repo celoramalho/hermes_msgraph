@@ -8,10 +8,12 @@ setup(
     author_email="marceloramalho.dev@gmail.com",
     url="https://github.com/celoramalho/hermes_msgraph",
     packages=find_packages(),
+    py_modules=["hermes_msgraph"],
     install_requires=[
         "requests>=2.0",
         "pandas>=1.0",
         "pyyaml>=5.0",
+        "tqdm",
     ],
     python_requires=">=3.7",
     classifiers=[

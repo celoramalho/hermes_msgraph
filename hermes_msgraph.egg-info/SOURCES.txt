@@ -1,0 +1,15 @@
+README.md
+setup.py
+hermes_msgraph/__init__.py
+hermes_msgraph/email_service.py
+hermes_msgraph/exceptions.py
+hermes_msgraph/hermes_msgraph.py
+hermes_msgraph/http_client.py
+hermes_msgraph/mailbox_folder_service.py
+hermes_msgraph/planner_service.py
+hermes_msgraph/users_service.py
+hermes_msgraph.egg-info/PKG-INFO
+hermes_msgraph.egg-info/SOURCES.txt
+hermes_msgraph.egg-info/dependency_links.txt
+hermes_msgraph.egg-info/requires.txt
+hermes_msgraph.egg-info/top_level.txt
