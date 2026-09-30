@@ -236,11 +236,6 @@ class EmailService:
             
         return data_json
     
-    def list_sharepoint_sites(self):
-        url = "https://graph.microsoft.com/v1.0/sites?$select=siteCollection,webUrl&$filter=siteCollection/root%20ne%20null"
-        data_json = self.http.get_json_response_by_url(url, get_value=True)
-        return data_json
-
     def __build_email_query_params(
         self,
         subject=None,

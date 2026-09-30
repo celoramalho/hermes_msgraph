@@ -9,6 +9,7 @@ from mailbox_folder_service import MailboxFolderService
 from planner_service import PlannerService
 from users_service import UsersService
 from teams_service import TeamsService
+from drive_service import DriveService
 from exceptions import HermesMSGraphError
 from typing import Literal
 
@@ -26,6 +27,7 @@ class HermesMSGraph:
         self.planner_service = PlannerService(self.http_client)
         self.users_service = UsersService(self.http_client)
         self.teams_service = TeamsService(self.http_client)
+        self.drive_service = DriveService(self.http_client)
         self.client_id = client_id
         self.client_secret = client_secret
         self.tenant_id = tenant_id
@@ -86,11 +88,21 @@ class HermesMSGraph:
     def get_tenant_licenses(self):
         return self.users_service.get_tenant_licenses()
     
-    def list_sharepoint_sites(self):
-        return self.email_service.list_sharepoint_sites()
-    
     def add_user_to_shared_mailbox(self, user_address, shared_mailbox_address):
         return self.users_service.add_user_to_shared_mailbox(user_address, shared_mailbox_address)
+
+    # DriveService methods
+    def list_sharepoint_sites(self):
+        return self.drive_service.list_sharepoint_sites()
+
+    def download_sharepoint_site(self, site, local_path):
+        return self.drive_service.download_sharepoint_site(site, local_path)
+
+    def download_all_sharepoint_sites(self, local_path):
+        return self.drive_service.download_all_sharepoint_sites(local_path)
+
+    def download_onedrive_files(self, user_email_or_id, local_path):
+        return self.drive_service.download_onedrive_files(user_email_or_id, local_path)
 
     # TeamsService methods
     def list_all_teams(self):

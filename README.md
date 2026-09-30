@@ -29,6 +29,7 @@ Registre uma aplicação no [Azure Portal](https://portal.azure.com) e conceda a
 - `Sites.Read.All` — listar sites do SharePoint
 - `Group.Read.All`, `Tasks.Read.All` — Planner
 - `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `ChannelMessage.Read.All`, `Chat.Read.All`, `ChatMember.Read.All` — Teams
+- `Sites.Read.All`, `Files.Read.All` — SharePoint e OneDrive (download de arquivos)
 
 Você vai precisar de `client_id`, `client_secret` e `tenant_id` dessa aplicação.
 
@@ -69,7 +70,6 @@ Veja o notebook [`examples/hermes_msgraph_examples.ipynb`](examples/hermes_msgra
 | `list_email_attachments` | Lista os anexos de um e-mail. |
 | `download_attachment` | Baixa um anexo específico para um arquivo local. |
 | `forward_email_by_id` | Encaminha um e-mail existente. |
-| `list_sharepoint_sites` | Lista sites raiz do SharePoint do tenant. |
 
 ### Pastas de caixa de correio (`MailboxFolderService`)
 
@@ -117,6 +117,29 @@ Veja o notebook [`examples/hermes_msgraph_examples.ipynb`](examples/hermes_msgra
 | `list_chat_messages` | Lista mensagens de um chat. |
 | `delta_chat_messages` | Sincronização incremental de mensagens de chat via delta query. |
 | `download_hosted_content` | Baixa conteúdo hospedado referenciado numa mensagem (ex.: imagens inline). |
+
+### Arquivos — SharePoint e OneDrive (`DriveService`)
+
+| Método | Descrição |
+|---|---|
+| `list_sharepoint_sites` | Lista todos os sites raiz do SharePoint do tenant. |
+| `download_sharepoint_site` | Baixa todos os arquivos de um site específico (por ID ou URL), preservando a estrutura de pastas. |
+| `download_all_sharepoint_sites` | Backup total: lista todos os sites (`list_sharepoint_sites`) e baixa cada um numa subpasta própria. |
+| `download_onedrive_files` | Baixa todos os arquivos do OneDrive de um usuário específico (por e-mail ou ID), preservando a estrutura de pastas. |
+
+```python
+# Baixar um site específico
+hermes.download_sharepoint_site(
+    "https://suaempresa.sharepoint.com/sites/Marketing",
+    local_path="./backup/marketing",
+)
+
+# Backup total de todos os sites do tenant (uma subpasta por site)
+hermes.download_all_sharepoint_sites(local_path="./backup")
+
+# Baixar o OneDrive de um usuário
+hermes.download_onedrive_files("usuario@suaempresa.com", local_path="./backup/onedrive_usuario")
+```
 
 ## Tratamento de erros
 
