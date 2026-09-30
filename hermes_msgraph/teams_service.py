@@ -108,6 +108,14 @@ class TeamsService:
         url = f"{self.BASE_URL}/users/{user_id}/joinedTeams"
         return self.__get_all_pages(url)
 
+    def list_team_members(self, team_id):
+        """
+        List members of a team, via the underlying Microsoft 365 group.
+        Requires GroupMember.Read.All or Group.Read.All (application permission).
+        """
+        url = f"{self.BASE_URL}/groups/{team_id}/members"
+        return self.__get_all_pages(url)
+
     def list_channels_by_team_id(self, team_id, include_private=False):
         """
         List channels of a team.

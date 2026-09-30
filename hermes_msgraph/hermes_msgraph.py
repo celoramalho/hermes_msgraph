@@ -99,6 +99,9 @@ class HermesMSGraph:
     def list_joined_teams_by_user_id(self, user_id):
         return self.teams_service.list_joined_teams_by_user_id(user_id)
 
+    def list_team_members(self, team_id):
+        return self.teams_service.list_team_members(team_id)
+
     def list_channels_by_team_id(self, team_id, include_private=False):
         return self.teams_service.list_channels_by_team_id(team_id, include_private=include_private)
 
