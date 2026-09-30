@@ -1,5 +1,7 @@
 import time
 
+import requests
+
 from exceptions import HermesMSGraphError
 
 
@@ -24,14 +26,33 @@ class TeamsService:
     def __get_all_pages(self, url, max_retries=5):
         """
         Follows @odata.nextLink until every page has been collected,
-        retrying on 429 (throttling) using the Retry-After header.
+        retrying on 429 (throttling) using the Retry-After header, and on
+        timeouts/connection errors with a short exponential backoff.
         """
         results = []
         next_url = url
         retries = 0
+        network_retries = 0
+        max_network_retries = 5
 
         while next_url:
-            response = self.http.get(next_url)
+            try:
+                response = self.http.get(next_url)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as erro:
+                if network_retries >= max_network_retries:
+                    raise self.HermesMSGraphError(
+                        f"Too many network retries fetching {next_url}: {erro}"
+                    )
+                wait_seconds = 2 ** network_retries
+                print(
+                    f"[hermes_msgraph] Network error on {next_url} ({erro}). "
+                    f"Retrying in {wait_seconds}s (attempt {network_retries + 1}/{max_network_retries})..."
+                )
+                time.sleep(wait_seconds)
+                network_retries += 1
+                continue
+
+            network_retries = 0
 
             if response.status_code == 429:
                 if retries >= max_retries:

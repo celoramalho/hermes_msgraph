@@ -4,11 +4,15 @@ import requests
 from exceptions import HermesMSGraphError
 
 
+DEFAULT_TIMEOUT = 30
+
+
 class HttpClient:
-    def __init__(self, client_id, client_secret, tenant_id):
+    def __init__(self, client_id, client_secret, tenant_id, timeout=DEFAULT_TIMEOUT):
         self.client_id = client_id
         self.client_secret = client_secret
         self.tenant_id = tenant_id
+        self.timeout = timeout
         self.session = requests.Session()
         self.access_token = self.__get_access_token()
 
@@ -21,7 +25,7 @@ class HttpClient:
             "scope": "https://graph.microsoft.com/.default",
         }
         try:
-            response = self.session.post(url, data=payload)
+            response = self.session.post(url, data=payload, timeout=self.timeout)
         except Exception as e:
             raise RuntimeError("Unable to make post request to get access token") from e
         response.raise_for_status()
@@ -56,7 +60,7 @@ class HttpClient:
             headers_raw.update(headers)
             headers = headers_raw
             print(headers_raw)
-        response = self.session.get(url, headers=headers)
+        response = self.session.get(url, headers=headers, timeout=self.timeout)
 
         response_status_code = self.__verify_response_status_code(response)
         if response_status_code == 401:
@@ -68,7 +72,7 @@ class HttpClient:
         headers = self.__headers()
         data = json.dumps(payload)
 
-        response = self.session.post(url, headers=headers, data=data)
+        response = self.session.post(url, headers=headers, data=data, timeout=self.timeout)
 
         response_status_code = self.__verify_response_status_code(response)
 
