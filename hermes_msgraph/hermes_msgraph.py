@@ -8,7 +8,8 @@ from email_service import EmailService
 from mailbox_folder_service import MailboxFolderService
 from planner_service import PlannerService
 from users_service import UsersService
-from exceptions import HermesMSGraphError       
+from teams_service import TeamsService
+from exceptions import HermesMSGraphError
 from typing import Literal
 
 class HermesMSGraph:
@@ -24,6 +25,7 @@ class HermesMSGraph:
         self.folder_service = MailboxFolderService(self.http_client)
         self.planner_service = PlannerService(self.http_client)
         self.users_service = UsersService(self.http_client)
+        self.teams_service = TeamsService(self.http_client)
         self.client_id = client_id
         self.client_secret = client_secret
         self.tenant_id = tenant_id
@@ -89,7 +91,47 @@ class HermesMSGraph:
     
     def add_user_to_shared_mailbox(self, user_address, shared_mailbox_address):
         return self.users_service.add_user_to_shared_mailbox(user_address, shared_mailbox_address)
-    
+
+    # TeamsService methods
+    def list_all_teams(self):
+        return self.teams_service.list_all_teams()
+
+    def list_joined_teams_by_user_id(self, user_id):
+        return self.teams_service.list_joined_teams_by_user_id(user_id)
+
+    def list_channels_by_team_id(self, team_id, include_private=False):
+        return self.teams_service.list_channels_by_team_id(team_id, include_private=include_private)
+
+    def get_channel_by_id(self, team_id, channel_id):
+        return self.teams_service.get_channel_by_id(team_id, channel_id)
+
+    def list_channel_messages(self, team_id, channel_id, include_replies=True):
+        return self.teams_service.list_channel_messages(team_id, channel_id, include_replies=include_replies)
+
+    def list_channel_message_replies(self, team_id, channel_id, message_id):
+        return self.teams_service.list_channel_message_replies(team_id, channel_id, message_id)
+
+    def delta_channel_messages(self, team_id, channel_id, delta_link=None):
+        return self.teams_service.delta_channel_messages(team_id, channel_id, delta_link=delta_link)
+
+    def list_chats_by_user_id(self, user_id, expand_members=True):
+        return self.teams_service.list_chats_by_user_id(user_id, expand_members=expand_members)
+
+    def get_chat_by_id(self, chat_id):
+        return self.teams_service.get_chat_by_id(chat_id)
+
+    def list_chat_members(self, chat_id):
+        return self.teams_service.list_chat_members(chat_id)
+
+    def list_chat_messages(self, chat_id):
+        return self.teams_service.list_chat_messages(chat_id)
+
+    def delta_chat_messages(self, chat_id, delta_link=None):
+        return self.teams_service.delta_chat_messages(chat_id, delta_link=delta_link)
+
+    def download_hosted_content(self, url, file_path):
+        return self.teams_service.download_hosted_content(url, file_path)
+
     def __verify_if_str_is_encoded(self, string):
         """
         Verifies if a string is already URL-encoded.
