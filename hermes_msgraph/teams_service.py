@@ -39,6 +39,10 @@ class TeamsService:
                         f"Too many retries after 429 throttling for {next_url}"
                     )
                 retry_after = int(response.headers.get("Retry-After", "5"))
+                print(
+                    f"[hermes_msgraph] Throttled (429) on {next_url}. "
+                    f"Retrying in {retry_after}s (attempt {retries + 1}/{max_retries})..."
+                )
                 time.sleep(retry_after)
                 retries += 1
                 continue
