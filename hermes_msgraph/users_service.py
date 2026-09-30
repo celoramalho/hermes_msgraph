@@ -61,10 +61,7 @@ class UsersService:
         for sku in sku_list:
             sku_id = sku.get("skuId")
             sku_name = sku.get("skuPartNumber")
-            if sku_name in friendly_names:
-                sku_friendly_name = friendly_names[sku_name]
-            else:
-                sku["friendlyName"] = friendly_names.get(sku_name, "Desconhecido")
+            sku_friendly_name = friendly_names.get(sku_name, "Desconhecido")
             skuid_list.append({"skuId": sku_id, "skuName": sku_name, "friendlyName": sku_friendly_name})
 
         return skuid_list
