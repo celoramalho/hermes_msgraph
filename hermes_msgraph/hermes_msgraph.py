@@ -105,17 +105,23 @@ class HermesMSGraph:
     def get_channel_by_id(self, team_id, channel_id):
         return self.teams_service.get_channel_by_id(team_id, channel_id)
 
-    def list_channel_messages(self, team_id, channel_id, include_replies=True):
-        return self.teams_service.list_channel_messages(team_id, channel_id, include_replies=include_replies)
+    def list_channel_messages(self, team_id, channel_id, include_replies=True, progress_callback=None):
+        return self.teams_service.list_channel_messages(
+            team_id, channel_id, include_replies=include_replies, progress_callback=progress_callback
+        )
 
-    def list_channel_message_replies(self, team_id, channel_id, message_id):
-        return self.teams_service.list_channel_message_replies(team_id, channel_id, message_id)
+    def list_channel_message_replies(self, team_id, channel_id, message_id, progress_callback=None):
+        return self.teams_service.list_channel_message_replies(
+            team_id, channel_id, message_id, progress_callback=progress_callback
+        )
 
     def delta_channel_messages(self, team_id, channel_id, delta_link=None):
         return self.teams_service.delta_channel_messages(team_id, channel_id, delta_link=delta_link)
 
-    def list_chats_by_user_id(self, user_id, expand_members=True):
-        return self.teams_service.list_chats_by_user_id(user_id, expand_members=expand_members)
+    def list_chats_by_user_id(self, user_id, expand_members=True, progress_callback=None):
+        return self.teams_service.list_chats_by_user_id(
+            user_id, expand_members=expand_members, progress_callback=progress_callback
+        )
 
     def get_chat_by_id(self, chat_id):
         return self.teams_service.get_chat_by_id(chat_id)
@@ -123,8 +129,8 @@ class HermesMSGraph:
     def list_chat_members(self, chat_id):
         return self.teams_service.list_chat_members(chat_id)
 
-    def list_chat_messages(self, chat_id):
-        return self.teams_service.list_chat_messages(chat_id)
+    def list_chat_messages(self, chat_id, progress_callback=None):
+        return self.teams_service.list_chat_messages(chat_id, progress_callback=progress_callback)
 
     def delta_chat_messages(self, chat_id, delta_link=None):
         return self.teams_service.delta_chat_messages(chat_id, delta_link=delta_link)

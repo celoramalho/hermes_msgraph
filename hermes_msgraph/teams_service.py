@@ -23,17 +23,25 @@ class TeamsService:
         self.http = http_client
         self.HermesMSGraphError = HermesMSGraphError
 
-    def __get_all_pages(self, url, max_retries=5):
+    def __get_all_pages(self, url, max_retries=5, progress_callback=None):
         """
         Follows @odata.nextLink until every page has been collected,
         retrying on 429 (throttling) using the Retry-After header, and on
         timeouts/connection errors with a short exponential backoff.
+
+        Args:
+            progress_callback: optional callable invoked after each page is
+                fetched as progress_callback(pages_fetched, items_so_far).
+                Useful to report progress on endpoints that paginate over
+                many pages before the full list is returned (e.g. a channel
+                with a large message history).
         """
         results = []
         next_url = url
         retries = 0
         network_retries = 0
         max_network_retries = 5
+        pages_fetched = 0
 
         while next_url:
             try:
@@ -77,6 +85,10 @@ class TeamsService:
             data = response.json()
             results.extend(data.get("value", []))
             next_url = data.get("@odata.nextLink")
+            pages_fetched += 1
+
+            if progress_callback is not None:
+                progress_callback(pages_fetched, len(results))
 
         return results
 
@@ -122,15 +134,20 @@ class TeamsService:
 
     # ---------------- Channel Messages ----------------
 
-    def list_channel_messages(self, team_id, channel_id, include_replies=True):
+    def list_channel_messages(self, team_id, channel_id, include_replies=True, progress_callback=None):
         """
         List all messages of a channel (top-level posts).
         Args:
             include_replies (bool): If True, also fetches the replies of
                 each top-level message and nests them under the "replies" key.
+            progress_callback: optional callable invoked as
+                progress_callback(pages_fetched, items_so_far) after each
+                page of top-level messages is fetched. Useful for channels
+                with a large message history, where a single call can take
+                several minutes to paginate through the full history.
         """
         url = f"{self.BASE_URL}/teams/{team_id}/channels/{channel_id}/messages"
-        messages = self.__get_all_pages(url)
+        messages = self.__get_all_pages(url, progress_callback=progress_callback)
 
         if include_replies:
             for message in messages:
@@ -140,12 +157,12 @@ class TeamsService:
 
         return messages
 
-    def list_channel_message_replies(self, team_id, channel_id, message_id):
+    def list_channel_message_replies(self, team_id, channel_id, message_id, progress_callback=None):
         url = (
             f"{self.BASE_URL}/teams/{team_id}/channels/{channel_id}"
             f"/messages/{message_id}/replies"
         )
-        return self.__get_all_pages(url)
+        return self.__get_all_pages(url, progress_callback=progress_callback)
 
     def delta_channel_messages(self, team_id, channel_id, delta_link=None):
         """
@@ -180,16 +197,18 @@ class TeamsService:
 
     # ---------------- Chats ----------------
 
-    def list_chats_by_user_id(self, user_id, expand_members=True):
+    def list_chats_by_user_id(self, user_id, expand_members=True, progress_callback=None):
         """
         List every chat (1:1, group, meeting) a user participates in.
         Args:
             expand_members (bool): If True, expands chat members inline.
+            progress_callback: optional callable invoked as
+                progress_callback(pages_fetched, items_so_far) after each page.
         """
         url = f"{self.BASE_URL}/users/{user_id}/chats"
         if expand_members:
             url += "?$expand=members"
-        return self.__get_all_pages(url)
+        return self.__get_all_pages(url, progress_callback=progress_callback)
 
     def get_chat_by_id(self, chat_id):
         url = f"{self.BASE_URL}/chats/{chat_id}"
@@ -204,13 +223,16 @@ class TeamsService:
         url = f"{self.BASE_URL}/chats/{chat_id}/members"
         return self.__get_all_pages(url)
 
-    def list_chat_messages(self, chat_id):
+    def list_chat_messages(self, chat_id, progress_callback=None):
         """
         List all messages of a chat (1:1 or group), oldest pagination handled
         automatically. Requires Chat.Read.All (application permission).
+        Args:
+            progress_callback: optional callable invoked as
+                progress_callback(pages_fetched, items_so_far) after each page.
         """
         url = f"{self.BASE_URL}/chats/{chat_id}/messages"
-        return self.__get_all_pages(url)
+        return self.__get_all_pages(url, progress_callback=progress_callback)
 
     def delta_chat_messages(self, chat_id, delta_link=None):
         """
