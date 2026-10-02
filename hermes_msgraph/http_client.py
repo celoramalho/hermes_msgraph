@@ -1,4 +1,6 @@
 import json
+import threading
+
 import requests
 
 from exceptions import HermesMSGraphError
@@ -14,6 +16,7 @@ class HttpClient:
         self.tenant_id = tenant_id
         self.timeout = timeout
         self.session = requests.Session()
+        self._token_lock = threading.Lock()
         self.access_token = self.__get_access_token()
 
     def __get_access_token(self):
@@ -45,7 +48,12 @@ class HttpClient:
         if response.status_code == 200:
             return 200
         elif response.status_code == 401:
-            self.access_token = self.__get_access_token()
+            token_antes = self.access_token
+            with self._token_lock:
+                # Evita renovar de novo se outra thread já renovou enquanto
+                # esta esperava o lock.
+                if self.access_token == token_antes:
+                    self.access_token = self.__get_access_token()
             return 401
         elif response.status_code == 403:
             return 403
