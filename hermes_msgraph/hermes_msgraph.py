@@ -95,14 +95,26 @@ class HermesMSGraph:
     def list_sharepoint_sites(self):
         return self.drive_service.list_sharepoint_sites()
 
-    def download_sharepoint_site(self, site, local_path):
-        return self.drive_service.download_sharepoint_site(site, local_path)
+    def list_drives_by_site_id(self, site_id):
+        return self.drive_service.list_drives_by_site_id(site_id)
 
-    def download_all_sharepoint_sites(self, local_path):
-        return self.drive_service.download_all_sharepoint_sites(local_path)
+    def list_drive_children(self, drive_id, item_id="root", progress_callback=None):
+        return self.drive_service.list_drive_children(drive_id, item_id, progress_callback=progress_callback)
 
-    def download_onedrive_files(self, user_email_or_id, local_path):
-        return self.drive_service.download_onedrive_files(user_email_or_id, local_path)
+    def get_drive_item_by_path(self, drive_id, item_path):
+        return self.drive_service.get_drive_item_by_path(drive_id, item_path)
+
+    def delta_drive_items(self, drive_id, delta_link=None):
+        return self.drive_service.delta_drive_items(drive_id, delta_link=delta_link)
+
+    def download_sharepoint_site(self, site, local_path, progress_callback=None):
+        return self.drive_service.download_sharepoint_site(site, local_path, progress_callback=progress_callback)
+
+    def download_all_sharepoint_sites(self, local_path, progress_callback=None):
+        return self.drive_service.download_all_sharepoint_sites(local_path, progress_callback=progress_callback)
+
+    def download_onedrive_files(self, user_email_or_id, local_path, progress_callback=None):
+        return self.drive_service.download_onedrive_files(user_email_or_id, local_path, progress_callback=progress_callback)
 
     # TeamsService methods
     def list_all_teams(self):
